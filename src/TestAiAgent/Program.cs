@@ -53,7 +53,7 @@ namespace TestAiAgent
                     services.AddSingleton<IToolRegistry, ToolRegistry>();
                     services.AddSingleton<IWeatherTool, WeatherTool>();
                     services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
-                    
+
                     // Configure JSON serialization globally
                     services.Configure<JsonSerializerOptions>(options =>
                     {
@@ -103,8 +103,9 @@ namespace TestAiAgent
     {
         Task<ClaudeResponse> SendMessageAsync(string userMessage, List<Message> conversationHistory = null, List<Tool> availableTools = null);
     }
+
     /// <summary>
-    /// Updated implementation of the Claude API client with correct message format
+    /// Updated implementation of the Claude API client
     /// </summary>
     public class ClaudeClient : IClaudeClient
     {
@@ -163,7 +164,6 @@ namespace TestAiAgent
                 if (availableTools != null && availableTools.Count > 0)
                 {
                     requestPayload.Tools = availableTools;
-                    requestPayload.ToolChoice = new ToolChoice { Type = "auto" };
                 }
 
                 // Serialize the request
@@ -200,7 +200,7 @@ namespace TestAiAgent
                 var claudeResponse = JsonSerializer.Deserialize<ClaudeResponse>(responseString, jsonOptions);
 
                 _logger.LogInformation($"Claude response parsed successfully. Tool use: {(claudeResponse.ToolUse != null ? "Yes" : "No")}");
- 
+
                 // Add assistant's response to conversation history with proper content format
                 conversationHistory.Add(new Message
                 {
@@ -221,7 +221,6 @@ namespace TestAiAgent
             }
         }
     }
-
 
     /// <summary>
     /// Updated Message model for the conversation
@@ -253,16 +252,7 @@ namespace TestAiAgent
 
         public double Temperature { get; set; }
         public List<Tool> Tools { get; set; }
-
-        [JsonPropertyName("tool_choice")]
-        public ToolChoice ToolChoice { get; set; }
-
         public string System { get; set; }
-    }
-
-    public class ToolChoice
-    {
-        public string Type { get; set; }
     }
 
     /// <summary>
@@ -278,9 +268,19 @@ namespace TestAiAgent
 
         public string Role => "assistant";
 
+        [JsonPropertyName("tool_use")]
         public ToolUse ToolUse { get; set; }
+
         public string Model { get; set; }
-        public StopReason StopReason { get; set; }
+
+
+        [JsonPropertyName("stop_reason")]
+        public string StopReason { get; set; }
+
+        [JsonPropertyName("stop_sequence")]
+        public string StopSequence { get; set; }
+
+
         public Usage Usage { get; set; }
     }
 
@@ -292,7 +292,6 @@ namespace TestAiAgent
         public string Type { get; set; }
         public string Text { get; set; }
     }
-    
 
     /// <summary>
     /// Extension method to get content as string
@@ -317,67 +316,42 @@ namespace TestAiAgent
     /// </summary>
     public class Tool
     {
-        public string Type { get; set; } = "function";
-
-        [JsonPropertyName("function")]
-        public ToolFunction Function { get; set; }
-    }
-
-    public class ToolFunction
-    {
         public string Name { get; set; }
         public string Description { get; set; }
 
-        [JsonPropertyName("parameters")]
-        public ToolParameters Parameters { get; set; }
+        [JsonPropertyName("input_schema")]
+        public InputSchema InputSchema { get; set; }
     }
 
-    public class ToolParameters
+    /// <summary>
+    /// Input schema for tool
+    /// </summary>
+    public class InputSchema
     {
         public string Type { get; set; } = "object";
-        public Dictionary<string, ToolProperty> Properties { get; set; }
+        public Dictionary<string, SchemaProperty> Properties { get; set; }
         public List<string> Required { get; set; }
     }
 
-    public class ToolProperty
+    /// <summary>
+    /// Schema property definition
+    /// </summary>
+    public class SchemaProperty
     {
         public string Type { get; set; }
         public string Description { get; set; }
     }
 
+    /// <summary>
+    /// Tool use information in Claude response
+    /// </summary>
     public class ToolUse
     {
         public string Id { get; set; }
-        public string Type { get; set; }
-
-        [JsonPropertyName("function")]
-        public ToolUseFunction Function { get; set; }
-    }
-
-    public class ToolUseFunction
-    {
         public string Name { get; set; }
-        public JsonElement Arguments { get; set; }
-    }
-
-    /// <summary>
-    /// Tool input schema
-    /// </summary>
-    public class ToolInput
-    {
-        public string Type { get; set; }
-        public Dictionary<string, ToolProperty> Properties { get; set; }
-        public List<string> Required { get; set; }
+        public JsonElement Input { get; set; }
     }
     
-    /// <summary>
-    /// Stop reason for Claude's response
-    /// </summary>
-    public class StopReason
-    {
-        public string Type { get; set; }
-    }
-
     /// <summary>
     /// Token usage information
     /// </summary>
@@ -416,7 +390,7 @@ namespace TestAiAgent
         /// </summary>
         public void RegisterTool(ITool tool)
         {
-            var toolName = tool.Definition.Function.Name;
+            var toolName = tool.Definition.Name;
 
             if (_tools.ContainsKey(toolName))
             {
@@ -495,33 +469,29 @@ namespace TestAiAgent
         /// </summary>
         public Tool Definition => new Tool
         {
-            Type = "function",
-            Function = new ToolFunction
+            Name = "get_weather",
+            Description = "Get current weather information for a specific location",
+            InputSchema = new InputSchema
             {
-                Name = "get_weather",
-                Description = "Get current weather information for a specific location",
-                Parameters = new ToolParameters
+                Type = "object",
+                Properties = new Dictionary<string, SchemaProperty>
                 {
-                    Type = "object",
-                    Properties = new Dictionary<string, ToolProperty>
                     {
+                        "location", new SchemaProperty
                         {
-                            "location", new ToolProperty
-                            {
-                                Type = "string",
-                                Description = "The city and state/country (e.g., 'San Francisco, CA' or 'London, UK')"
-                            }
-                        },
-                        {
-                            "units", new ToolProperty
-                            {
-                                Type = "string",
-                                Description = "Temperature units: 'metric' for Celsius, 'imperial' for Fahrenheit"
-                            }
+                            Type = "string",
+                            Description = "The city and state/country (e.g., 'San Francisco, CA' or 'London, UK')"
                         }
                     },
-                    Required = new List<string> { "location" }
-                }
+                    {
+                        "units", new SchemaProperty
+                        {
+                            Type = "string",
+                            Description = "Temperature units: 'metric' for Celsius, 'imperial' for Fahrenheit"
+                        }
+                    }
+                },
+                Required = new List<string> { "location" }
             }
         };
 
@@ -659,7 +629,7 @@ namespace TestAiAgent
 
                 foreach (var tool in availableTools)
                 {
-                    _logger.LogInformation($"Tool available: {tool.Function.Name}");
+                    _logger.LogInformation($"Tool available: {tool.Name}");
                 }
 
                 // Send the message to Claude
@@ -670,7 +640,7 @@ namespace TestAiAgent
                 // Check if Claude wants to use a tool
                 if (claudeResponse.ToolUse != null)
                 {
-                    var toolName = claudeResponse.ToolUse.Function.Name;
+                    var toolName = claudeResponse.ToolUse.Name;
                     _logger.LogInformation($"Claude requested to use tool: {toolName}");
 
                     if (_toolRegistry.HasTool(toolName))
@@ -678,30 +648,32 @@ namespace TestAiAgent
                         // Get the tool and execute it
                         var tool = _toolRegistry.GetToolByName(toolName);
                         _logger.LogInformation($"Executing tool: {toolName}");
-                        var toolResult = await tool.ExecuteAsync(claudeResponse.ToolUse.Function.Arguments);
+                        var toolResult = await tool.ExecuteAsync(claudeResponse.ToolUse.Input);
                         _logger.LogInformation("Tool execution completed");
 
-                        // Add the tool result to the conversation
+                        // Add the tool result to the conversation with proper format
                         conversationHistory.Add(new Message
                         {
                             Role = "assistant",
-                            Content = new List<ContentItem> {
-                            new ContentItem { Type = "text", Text = $"I need to use the {toolName} tool to answer this." }
-                        }
+                            Content = claudeResponse.Content.Select(c => new ContentItem
+                            {
+                                Type = c.Type,
+                                Text = c.Text
+                            }).ToList()
                         });
 
                         conversationHistory.Add(new Message
                         {
-                            Role = "tool",
+                            Role = "user",
                             Content = new List<ContentItem> {
-                            new ContentItem { Type = "text", Text = toolResult }
-                        }
+                                new ContentItem { Type = "text", Text = $"Tool result: {toolResult}" }
+                            }
                         });
 
                         // Send the tool result back to Claude
                         _logger.LogInformation("Sending tool result back to Claude");
                         var finalResponse = await _claudeClient.SendMessageAsync(
-                            $"Here's the result from the {toolName} tool: {toolResult}. Please provide a final answer to the user's question.",
+                            $"Tool result: {toolResult}",
                             conversationHistory);
 
                         return finalResponse.GetTextContent();
