@@ -234,7 +234,6 @@ namespace TestAiAgent
         public List<ContentItem> Content { get; set; } = new List<ContentItem>();
     }
 
-    // Content item model for Claude messages
     public class ContentItem
     {
         public string Type { get; set; } = "text";
