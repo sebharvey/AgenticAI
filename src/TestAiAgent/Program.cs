@@ -1,0 +1,728 @@
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace TestAiAgent
+{
+    /// <summary>
+    /// Main Program class that sets up and runs the Claude AI Agent
+    /// </summary>
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            var host = new HostBuilder()
+                .ConfigureFunctionsWebApplication()
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    // Load configuration from appsettings.json
+                    config.AddJsonFile("appsettings.json", optional: false);
+                    config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true);
+
+                    // Load configuration from Azure Key Vault
+                    if (context.HostingEnvironment.IsProduction())
+                    {
+                        var builtConfig = config.Build();
+                        var keyVaultUrl = builtConfig["KeyVault:Url"];
+
+                        //config.AddAzureKeyVault(
+                        //    new Uri(keyVaultUrl),
+                        //    new DefaultAzureCredential());
+                    }
+
+                    // Add environment variables and command line arguments
+                    config.AddEnvironmentVariables();
+                    config.AddCommandLine(args);
+                })
+                .ConfigureServices((context, services) =>
+                {
+                    // Register services
+                    services.Configure<ClaudeOptions>(context.Configuration.GetSection("Claude"));
+                    services.Configure<ToolOptions>(context.Configuration.GetSection("Tools"));
+
+                    // Register HTTP client
+                    services.AddHttpClient();
+
+                    // Register our services
+                    services.AddSingleton<IClaudeClient, ClaudeClient>();
+                    services.AddSingleton<IToolRegistry, ToolRegistry>();
+                    services.AddSingleton<IWeatherTool, WeatherTool>();
+                    services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
+                    
+                    // Configure JSON serialization globally
+                    services.Configure<JsonSerializerOptions>(options =>
+                    {
+                        options.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                        options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                    });
+                })
+                .Build();
+
+            host.Run();
+        }
+    }
+
+    /// <summary>
+    /// Configuration options for Claude API
+    /// </summary>
+    public class ClaudeOptions
+    {
+        public string ApiKey { get; set; }
+        public string ModelName { get; set; } = "claude-3-7-sonnet-20250219";
+        public string ApiEndpoint { get; set; } = "https://api.anthropic.com/v1/messages";
+        public double Temperature { get; set; } = 0.7;
+        public int MaxTokens { get; set; } = 4096;
+    }
+
+    /// <summary>
+    /// Configuration options for tools
+    /// </summary>
+    public class ToolOptions
+    {
+        public WeatherToolOptions Weather { get; set; }
+    }
+
+    /// <summary>
+    /// Configuration options for the weather tool
+    /// </summary>
+    public class WeatherToolOptions
+    {
+        public string ApiKey { get; set; }
+        public string ApiEndpoint { get; set; } = "https://api.openweathermap.org/data/2.5/weather";
+    }
+
+    /// <summary>
+    /// Interface for the Claude API client
+    /// </summary>
+    public interface IClaudeClient
+    {
+        Task<ClaudeResponse> SendMessageAsync(string userMessage, List<Message> conversationHistory = null, List<Tool> availableTools = null);
+    }
+    /// <summary>
+    /// Updated implementation of the Claude API client with correct message format
+    /// </summary>
+    public class ClaudeClient : IClaudeClient
+    {
+        private readonly HttpClient _httpClient;
+        private readonly ClaudeOptions _options;
+        private readonly ILogger<ClaudeClient> _logger;
+
+        public ClaudeClient(
+            IHttpClientFactory httpClientFactory,
+            IOptions<ClaudeOptions> options,
+            ILogger<ClaudeClient> logger)
+        {
+            _httpClient = httpClientFactory.CreateClient();
+            _options = options.Value;
+            _logger = logger;
+
+            // Configure HTTP client with default headers
+            _httpClient.DefaultRequestHeaders.Add("x-api-key", _options.ApiKey);
+            _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+
+            _logger.LogInformation($"ClaudeClient initialized with model: {_options.ModelName}");
+        }
+
+        /// <summary>
+        /// Sends a message to Claude API and gets the response
+        /// </summary>
+        public async Task<ClaudeResponse> SendMessageAsync(string userMessage, List<Message> conversationHistory = null, List<Tool> availableTools = null)
+        {
+            try
+            {
+                // Create a new list if conversation history is null
+                conversationHistory ??= new List<Message>();
+
+                // Add the current user message to the history with correct content format
+                conversationHistory.Add(new Message
+                {
+                    Role = "user",
+                    Content = new List<ContentItem> {
+                        new ContentItem { Type = "text", Text = userMessage }
+                    }
+                });
+
+                _logger.LogInformation($"Sending message to Claude. Message length: {userMessage.Length} chars");
+                _logger.LogInformation($"Conversation history: {conversationHistory.Count} messages");
+
+                // Prepare the request payload
+                var requestPayload = new ClaudeRequest
+                {
+                    Model = _options.ModelName,
+                    Messages = conversationHistory,
+                    MaxTokens = _options.MaxTokens,
+                    Temperature = _options.Temperature
+                };
+
+                // Add tools if provided
+                if (availableTools != null && availableTools.Count > 0)
+                {
+                    requestPayload.Tools = availableTools;
+                    requestPayload.ToolChoice = new ToolChoice { Type = "auto" };
+                }
+
+                // Serialize the request
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestPayload, jsonOptions);
+                _logger.LogInformation($"Request payload: {jsonContent}");
+
+                // Send the request to the Claude API
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation($"Sending request to {_options.ApiEndpoint}");
+                var response = await _httpClient.PostAsync(_options.ApiEndpoint, content);
+
+                // Log response status
+                _logger.LogInformation($"Claude API response status: {response.StatusCode}");
+
+                // Get response content even if it's an error
+                var responseString = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation($"Response content: {responseString}");
+
+                // Ensure the request was successful
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Claude API error: {response.StatusCode}, Content: {responseString}");
+                    throw new HttpRequestException($"Claude API returned {response.StatusCode}: {responseString}");
+                }
+
+                // Parse the response
+                var claudeResponse = JsonSerializer.Deserialize<ClaudeResponse>(responseString, jsonOptions);
+
+                _logger.LogInformation($"Claude response parsed successfully. Tool use: {(claudeResponse.ToolUse != null ? "Yes" : "No")}");
+ 
+                // Add assistant's response to conversation history with proper content format
+                conversationHistory.Add(new Message
+                {
+                    Role = "assistant",
+                    Content = claudeResponse.Content.Select(c => new ContentItem
+                    {
+                        Type = c.Type,
+                        Text = c.Text
+                    }).ToList()
+                });
+
+                return claudeResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error communicating with Claude API");
+                throw;
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Updated Message model for the conversation
+    /// </summary>
+    public class Message
+    {
+        public string Role { get; set; }
+
+        [JsonPropertyName("content")]
+        public List<ContentItem> Content { get; set; } = new List<ContentItem>();
+    }
+
+    // Content item model for Claude messages
+    public class ContentItem
+    {
+        public string Type { get; set; } = "text";
+        public string Text { get; set; }
+    }
+
+    /// <summary>
+    /// Updated Claude API request model
+    /// </summary>
+    public class ClaudeRequest
+    {
+        public string Model { get; set; }
+        public List<Message> Messages { get; set; }
+
+        [JsonPropertyName("max_tokens")]
+        public int MaxTokens { get; set; }
+
+        public double Temperature { get; set; }
+        public List<Tool> Tools { get; set; }
+
+        [JsonPropertyName("tool_choice")]
+        public ToolChoice ToolChoice { get; set; }
+
+        public string System { get; set; }
+    }
+
+    public class ToolChoice
+    {
+        public string Type { get; set; }
+    }
+
+    /// <summary>
+    /// Updated Claude API response model
+    /// </summary>
+    public class ClaudeResponse
+    {
+        public string Id { get; set; }
+        public string Type { get; set; }
+
+        [JsonPropertyName("content")]
+        public List<ContentBlock> Content { get; set; }
+
+        public string Role => "assistant";
+
+        public ToolUse ToolUse { get; set; }
+        public string Model { get; set; }
+        public StopReason StopReason { get; set; }
+        public Usage Usage { get; set; }
+    }
+
+    /// <summary>
+    /// Content block model for Claude messages
+    /// </summary>
+    public class ContentBlock
+    {
+        public string Type { get; set; }
+        public string Text { get; set; }
+    }
+    
+
+    /// <summary>
+    /// Extension method to get content as string
+    /// </summary>
+    public static class ClaudeResponseExtensions
+    {
+        public static string GetTextContent(this ClaudeResponse response)
+        {
+            if (response?.Content == null || response.Content.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return string.Join("\n", response.Content
+                .Where(c => c.Type == "text")
+                .Select(c => c.Text));
+        }
+    }
+
+    /// <summary>
+    /// Tool model for describing available tools to Claude
+    /// </summary>
+    public class Tool
+    {
+        public string Type { get; set; } = "function";
+
+        [JsonPropertyName("function")]
+        public ToolFunction Function { get; set; }
+    }
+
+    public class ToolFunction
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+
+        [JsonPropertyName("parameters")]
+        public ToolParameters Parameters { get; set; }
+    }
+
+    public class ToolParameters
+    {
+        public string Type { get; set; } = "object";
+        public Dictionary<string, ToolProperty> Properties { get; set; }
+        public List<string> Required { get; set; }
+    }
+
+    public class ToolProperty
+    {
+        public string Type { get; set; }
+        public string Description { get; set; }
+    }
+
+    public class ToolUse
+    {
+        public string Id { get; set; }
+        public string Type { get; set; }
+
+        [JsonPropertyName("function")]
+        public ToolUseFunction Function { get; set; }
+    }
+
+    public class ToolUseFunction
+    {
+        public string Name { get; set; }
+        public JsonElement Arguments { get; set; }
+    }
+
+    /// <summary>
+    /// Tool input schema
+    /// </summary>
+    public class ToolInput
+    {
+        public string Type { get; set; }
+        public Dictionary<string, ToolProperty> Properties { get; set; }
+        public List<string> Required { get; set; }
+    }
+    
+    /// <summary>
+    /// Stop reason for Claude's response
+    /// </summary>
+    public class StopReason
+    {
+        public string Type { get; set; }
+    }
+
+    /// <summary>
+    /// Token usage information
+    /// </summary>
+    public class Usage
+    {
+        public int InputTokens { get; set; }
+        public int OutputTokens { get; set; }
+    }
+
+    /// <summary>
+    /// Interface for tool registry to manage available tools
+    /// </summary>
+    public interface IToolRegistry
+    {
+        void RegisterTool(ITool tool);
+        List<Tool> GetAvailableTools();
+        ITool GetToolByName(string name);
+        bool HasTool(string name);
+    }
+
+    /// <summary>
+    /// Implementation of tool registry
+    /// </summary>
+    public class ToolRegistry : IToolRegistry
+    {
+        private readonly Dictionary<string, ITool> _tools = new Dictionary<string, ITool>();
+        private readonly ILogger<ToolRegistry> _logger;
+
+        public ToolRegistry(ILogger<ToolRegistry> logger)
+        {
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Registers a tool in the registry
+        /// </summary>
+        public void RegisterTool(ITool tool)
+        {
+            var toolName = tool.Definition.Function.Name;
+
+            if (_tools.ContainsKey(toolName))
+            {
+                _logger.LogWarning($"Tool with name {toolName} already exists and will be replaced");
+            }
+
+            _tools[toolName] = tool;
+            _logger.LogInformation($"Tool {toolName} registered");
+        }
+
+        /// <summary>
+        /// Gets all available tools for Claude
+        /// </summary>
+        public List<Tool> GetAvailableTools()
+        {
+            return _tools.Values.Select(t => t.Definition).ToList();
+        }
+
+        /// <summary>
+        /// Gets a tool by name
+        /// </summary>
+        public ITool GetToolByName(string name)
+        {
+            if (_tools.TryGetValue(name, out var tool))
+            {
+                return tool;
+            }
+
+            throw new KeyNotFoundException($"Tool with name {name} not found");
+        }
+
+        /// <summary>
+        /// Checks if a tool exists
+        /// </summary>
+        public bool HasTool(string name)
+        {
+            return _tools.ContainsKey(name);
+        }
+    }
+
+    /// <summary>
+    /// Interface for a tool that can be used by Claude
+    /// </summary>
+    public interface ITool
+    {
+        Tool Definition { get; }
+        Task<string> ExecuteAsync(JsonElement input);
+    }
+
+    /// <summary>
+    /// Weather tool implementation for retrieving weather data
+    /// </summary>
+    public interface IWeatherTool : ITool { }
+
+    /// <summary>
+    /// Weather tool implementation
+    /// </summary>
+    public class WeatherTool : IWeatherTool
+    {
+        private readonly HttpClient _httpClient;
+        private readonly WeatherToolOptions _options;
+        private readonly ILogger<WeatherTool> _logger;
+
+        public WeatherTool(
+            IHttpClientFactory httpClientFactory,
+            Microsoft.Extensions.Options.IOptions<ToolOptions> options,
+            ILogger<WeatherTool> logger)
+        {
+            _httpClient = httpClientFactory.CreateClient();
+            _options = options.Value.Weather;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Tool definition for Claude
+        /// </summary>
+        public Tool Definition => new Tool
+        {
+            Type = "function",
+            Function = new ToolFunction
+            {
+                Name = "get_weather",
+                Description = "Get current weather information for a specific location",
+                Parameters = new ToolParameters
+                {
+                    Type = "object",
+                    Properties = new Dictionary<string, ToolProperty>
+                    {
+                        {
+                            "location", new ToolProperty
+                            {
+                                Type = "string",
+                                Description = "The city and state/country (e.g., 'San Francisco, CA' or 'London, UK')"
+                            }
+                        },
+                        {
+                            "units", new ToolProperty
+                            {
+                                Type = "string",
+                                Description = "Temperature units: 'metric' for Celsius, 'imperial' for Fahrenheit"
+                            }
+                        }
+                    },
+                    Required = new List<string> { "location" }
+                }
+            }
+        };
+
+        /// <summary>
+        /// Executes the weather tool to get weather data
+        /// </summary>
+        public async Task<string> ExecuteAsync(JsonElement input)
+        {
+            try
+            {
+                // Extract input parameters
+                var location = input.GetProperty("location").GetString();
+                var units = input.TryGetProperty("units", out var unitsElement)
+                    ? unitsElement.GetString()
+                    : "metric";
+
+                // Build the API URL
+                var url = $"{_options.ApiEndpoint}?q={Uri.EscapeDataString(location)}&units={units}&appid={_options.ApiKey}";
+
+                // Send the request
+                var response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // Parse the response
+                var weatherData = await response.Content.ReadAsStringAsync();
+                var weatherJson = JsonDocument.Parse(weatherData);
+
+                // Format a user-friendly response
+                var root = weatherJson.RootElement;
+                var main = root.GetProperty("main");
+                var weather = root.GetProperty("weather")[0];
+                var wind = root.GetProperty("wind");
+
+                var temp = main.GetProperty("temp").GetDouble();
+                var feelsLike = main.GetProperty("feels_like").GetDouble();
+                var description = weather.GetProperty("description").GetString();
+                var windSpeed = wind.GetProperty("speed").GetDouble();
+                var cityName = root.GetProperty("name").GetString();
+
+                var unitSymbol = units == "metric" ? "°C" : "°F";
+                var windUnit = units == "metric" ? "m/s" : "mph";
+
+                return JsonSerializer.Serialize(new
+                {
+                    city = cityName,
+                    temperature = $"{temp}{unitSymbol}",
+                    feels_like = $"{feelsLike}{unitSymbol}",
+                    description = description,
+                    wind_speed = $"{windSpeed} {windUnit}",
+                    humidity = $"{main.GetProperty("humidity").GetInt32()}%",
+                    raw_data = weatherJson.RootElement
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing weather tool");
+                return JsonSerializer.Serialize(new
+                {
+                    error = $"Failed to retrieve weather data: {ex.Message}"
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Interface for the agent orchestrator that coordinates the Claude client and tools
+    /// </summary>
+    public interface IAgentOrchestrator
+    {
+        Task<string> ProcessUserMessageAsync(string userMessage, List<Message> conversationHistory = null);
+    }
+
+    /// <summary>
+    /// Updated implementation of the agent orchestrator
+    /// </summary>
+    public class AgentOrchestrator : IAgentOrchestrator
+    {
+        private readonly IClaudeClient _claudeClient;
+        private readonly IToolRegistry _toolRegistry;
+        private readonly IWeatherTool _weatherTool;
+        private readonly ILogger<AgentOrchestrator> _logger;
+        private static bool _toolsRegistered = false;
+        private static readonly object _initLock = new object();
+
+        public AgentOrchestrator(
+            IClaudeClient claudeClient,
+            IToolRegistry toolRegistry,
+            IWeatherTool weatherTool,
+            ILogger<AgentOrchestrator> logger)
+        {
+            _claudeClient = claudeClient;
+            _toolRegistry = toolRegistry;
+            _weatherTool = weatherTool;
+            _logger = logger;
+
+            // Ensure tools are registered
+            EnsureToolsRegistered();
+        }
+
+        /// <summary>
+        /// Ensures tools are registered with the registry
+        /// </summary>
+        private void EnsureToolsRegistered()
+        {
+            if (!_toolsRegistered)
+            {
+                lock (_initLock)
+                {
+                    if (!_toolsRegistered)
+                    {
+                        _toolRegistry.RegisterTool(_weatherTool);
+                        _logger.LogInformation("Weather tool registered successfully");
+                        _toolsRegistered = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Processes a user message by sending it to Claude and handling tool calls
+        /// </summary>
+        public async Task<string> ProcessUserMessageAsync(string userMessage, List<Message> conversationHistory = null)
+        {
+            try
+            {
+                // Initialize conversation history if not provided
+                conversationHistory ??= new List<Message>();
+
+                // Ensure tools are registered
+                EnsureToolsRegistered();
+
+                // Get available tools
+                var availableTools = _toolRegistry.GetAvailableTools();
+                _logger.LogInformation($"Available tools for processing: {availableTools.Count}");
+
+                foreach (var tool in availableTools)
+                {
+                    _logger.LogInformation($"Tool available: {tool.Function.Name}");
+                }
+
+                // Send the message to Claude
+                _logger.LogInformation("Sending message to Claude with tools");
+                var claudeResponse = await _claudeClient.SendMessageAsync(userMessage, conversationHistory, availableTools);
+                _logger.LogInformation("Received response from Claude");
+
+                // Check if Claude wants to use a tool
+                if (claudeResponse.ToolUse != null)
+                {
+                    var toolName = claudeResponse.ToolUse.Function.Name;
+                    _logger.LogInformation($"Claude requested to use tool: {toolName}");
+
+                    if (_toolRegistry.HasTool(toolName))
+                    {
+                        // Get the tool and execute it
+                        var tool = _toolRegistry.GetToolByName(toolName);
+                        _logger.LogInformation($"Executing tool: {toolName}");
+                        var toolResult = await tool.ExecuteAsync(claudeResponse.ToolUse.Function.Arguments);
+                        _logger.LogInformation("Tool execution completed");
+
+                        // Add the tool result to the conversation
+                        conversationHistory.Add(new Message
+                        {
+                            Role = "assistant",
+                            Content = new List<ContentItem> {
+                            new ContentItem { Type = "text", Text = $"I need to use the {toolName} tool to answer this." }
+                        }
+                        });
+
+                        conversationHistory.Add(new Message
+                        {
+                            Role = "tool",
+                            Content = new List<ContentItem> {
+                            new ContentItem { Type = "text", Text = toolResult }
+                        }
+                        });
+
+                        // Send the tool result back to Claude
+                        _logger.LogInformation("Sending tool result back to Claude");
+                        var finalResponse = await _claudeClient.SendMessageAsync(
+                            $"Here's the result from the {toolName} tool: {toolResult}. Please provide a final answer to the user's question.",
+                            conversationHistory);
+
+                        return finalResponse.GetTextContent();
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Claude requested a tool that doesn't exist: {toolName}");
+                        return $"I apologize, but I don't have access to the tool '{toolName}' that would help answer your question.";
+                    }
+                }
+
+                // If no tool was used, return Claude's response directly
+                _logger.LogInformation("No tool was used, returning Claude's direct response");
+                return claudeResponse.GetTextContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing user message");
+                return $"I'm sorry, I encountered an error processing your request: {ex.Message}";
+            }
+        }
+    }
+}
