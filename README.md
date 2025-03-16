@@ -23,6 +23,106 @@ The agent is built on a .NET isolated Azure Function architecture with these cor
 - **ToolRegistry**: Registry for managing available tools
 - **AgentOrchestrator**: Coordinates the conversation flow between Claude and tools
 
+```mermaid
+flowchart TB
+    subgraph "AI Agent System"
+        User((User)) --> API[Azure Functions API]
+        API --> Orchestrator[Agent Orchestrator]
+        
+        subgraph "Tool Registry"
+            ToolRegistry[Tool Registry]
+            WeatherTool[Weather Tool]
+            FutureTool1[Additional Tool 1]
+            FutureTool2[Additional Tool 2]
+            
+            ToolRegistry --- WeatherTool
+            ToolRegistry --- FutureTool1
+            ToolRegistry --- FutureTool2
+        end
+        
+        Orchestrator --- ToolRegistry
+        
+        subgraph "Claude Integration"
+            Claude[Claude Client]
+            ClaudeAPI[Claude API]
+            
+            Claude --> ClaudeAPI
+        end
+        
+        Orchestrator --- Claude
+        
+        WeatherTool --> WeatherAPI[(Weather API)]
+        FutureTool1 -.- ExternalAPI1[(External API 1)]
+        FutureTool2 -.- ExternalAPI2[(External API 2)]
+    end
+    
+    style Claude fill:#9DB0E3
+    style Orchestrator fill:#FFD580
+    style ToolRegistry fill:#C1E1C1
+    style WeatherTool fill:#C1E1C1
+    style FutureTool1 fill:#C1E1C1,stroke-dasharray: 5 5
+    style FutureTool2 fill:#C1E1C1,stroke-dasharray: 5 5
+    style ExternalAPI1 fill:#FAD9D9,stroke-dasharray: 5 5
+    style ExternalAPI2 fill:#FAD9D9,stroke-dasharray: 5 5
+```
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API as Azure Functions API
+    participant Orchestrator as Agent Orchestrator
+    participant Registry as Tool Registry
+    participant Claude as Claude Client
+    participant ClaudeAPI as Claude API
+    participant Weather as Weather Tool
+    participant WeatherAPI as Weather API
+    
+    User->>API: Send user query
+    API->>Orchestrator: ProcessUserMessageAsync(query)
+    
+    Note over Orchestrator: Initialize conversation if needed
+    
+    Orchestrator->>Registry: EnsureToolsRegistered()
+    Registry-->>Orchestrator: Tools registered
+    
+    Orchestrator->>Registry: GetAvailableTools()
+    Registry-->>Orchestrator: List of available tools
+    
+    Orchestrator->>Claude: SendMessageAsync(query, history, tools)
+    Claude->>ClaudeAPI: POST /v1/messages
+    
+    Note over Claude,ClaudeAPI: Format content as proper JSON with tools
+    
+    ClaudeAPI-->>Claude: Claude response with toolUse
+    Claude-->>Orchestrator: ClaudeResponse
+    
+    alt Claude needs to use a tool
+        Note over Orchestrator: Check if tool exists
+        Orchestrator->>Registry: HasTool(toolName)
+        Registry-->>Orchestrator: Tool exists
+        
+        Orchestrator->>Registry: GetToolByName(toolName)
+        Registry-->>Orchestrator: Tool instance
+        
+        Orchestrator->>Weather: ExecuteAsync(toolArguments)
+        Weather->>WeatherAPI: GET weather data
+        WeatherAPI-->>Weather: Weather data response
+        Weather-->>Orchestrator: Formatted tool result
+        
+        Note over Orchestrator: Add tool interaction to conversation
+        
+        Orchestrator->>Claude: SendMessageAsync(toolResult, updatedHistory)
+        Claude->>ClaudeAPI: POST /v1/messages
+        ClaudeAPI-->>Claude: Final response from Claude
+        Claude-->>Orchestrator: Final ClaudeResponse
+    else No tool needed
+        Note over Orchestrator: Use Claude's direct response
+    end
+    
+    Orchestrator-->>API: Final response text
+    API-->>User: Display response to user
+```
+
 ## Prerequisites
 
 - [Azure Functions Core Tools](https://docs.microsoft.com/en-us/azure/azure-functions/functions-run-local)
@@ -31,45 +131,6 @@ The agent is built on a .NET isolated Azure Function architecture with these cor
 - Anthropic Claude API key
 - OpenWeather API key (for the weather tool)
 
-## Getting Started
-
-### Local Development
-
-1. Clone the repository
-2. Update `local.settings.json` with your API keys
-3. Run the function locally:
-
-```bash
-func start
-```
-
-### Deployment to Azure
-
-1. Create Azure resources using the ARM template:
-
-```bash
-az deployment group create \
-  --resource-group <your-resource-group> \
-  --template-file azure-function-deployment.yaml \
-  --parameters functionAppName=claude-agent \
-  storageAccountName=claudeagentstorage \
-  appInsightsName=claude-agent-insights \
-  keyVaultName=claude-agent-kv \
-  appServicePlanName=claude-agent-plan
-```
-
-2. Store your API keys in Azure Key Vault:
-
-```bash
-az keyvault secret set --vault-name claude-agent-kv --name ClaudeApiKey --value <your-claude-api-key>
-az keyvault secret set --vault-name claude-agent-kv --name WeatherApiKey --value <your-weather-api-key>
-```
-
-3. Deploy the function app:
-
-```bash
-func azure functionapp publish claude-agent
-```
 
 ## Using the API
 
