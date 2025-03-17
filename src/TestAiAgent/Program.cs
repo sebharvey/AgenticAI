@@ -14,9 +14,6 @@ using TestAiAgent.Tooling.Tools;
 
 namespace TestAiAgent
 {
-    /// <summary>
-    /// Main Program class that sets up and runs the Claude AI Agent
-    /// </summary>
     public class Program
     {
         public static void Main(string[] args)
@@ -25,11 +22,9 @@ namespace TestAiAgent
                 .ConfigureFunctionsWebApplication()
                 .ConfigureAppConfiguration((context, config) =>
                 {
-                    // Load configuration from appsettings.json
                     config.AddJsonFile("appsettings.json", optional: false);
                     config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true);
 
-                    // Load configuration from Azure Key Vault
                     if (context.HostingEnvironment.IsProduction())
                     {
                         var builtConfig = config.Build();
@@ -40,29 +35,24 @@ namespace TestAiAgent
                         //    new DefaultAzureCredential());
                     }
 
-                    // Add environment variables and command line arguments
                     config.AddEnvironmentVariables();
                     config.AddCommandLine(args);
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    // Register services
                     services.Configure<ClaudeOptions>(context.Configuration.GetSection("Claude"));
                     services.Configure<ToolOptions>(context.Configuration.GetSection("Tools"));
 
-                    // Register HTTP client
                     services.AddHttpClient();
 
-                    // Register our services
                     services.AddSingleton<IClaudeClient, ClaudeClient>();
                     services.AddSingleton<IToolRegistry, ToolRegistry>();
                     services.AddSingleton<IWeatherTool, WeatherTool>();
                     services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
 
-                    // Configure JSON serialization globally
                     services.Configure<JsonSerializerOptions>(options =>
                     {
-                        options.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                         options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
                     });
                 })
@@ -252,7 +242,6 @@ namespace TestAiAgent.LanguageModel
             _options = options.Value;
             _logger = logger;
 
-            // Configure HTTP client with default headers
             _httpClient.DefaultRequestHeaders.Add("x-api-key", _options.ApiKey);
             _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
@@ -266,10 +255,8 @@ namespace TestAiAgent.LanguageModel
         {
             try
             {
-                // Create a new list if conversation history is null
                 conversationHistory ??= new List<Message>();
 
-                // Add the current user message to the history with correct content format
                 conversationHistory.Add(new Message
                 {
                     Role = "user",
@@ -282,7 +269,6 @@ namespace TestAiAgent.LanguageModel
                 _logger.LogInformation($"Sending message to Claude. Message length: {userMessage.Length} chars");
                 _logger.LogInformation($"Conversation history: {conversationHistory.Count} messages");
 
-                // Prepare the request payload
                 var requestPayload = new ClaudeRequest
                 {
                     Model = _options.ModelName,
@@ -291,13 +277,11 @@ namespace TestAiAgent.LanguageModel
                     Temperature = _options.Temperature
                 };
 
-                // Add tools if provided
                 if (availableTools is { Count: > 0 })
                 {
                     requestPayload.Tools = availableTools;
                 }
 
-                // Serialize the request
                 var jsonOptions = new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -307,27 +291,23 @@ namespace TestAiAgent.LanguageModel
                 var jsonContent = JsonSerializer.Serialize(requestPayload, jsonOptions);
                 _logger.LogInformation($"Request payload: {jsonContent}");
 
-                // Send the request to the Claude API
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
                 _logger.LogInformation($"Sending request to {_options.ApiEndpoint}");
                 var response = await _httpClient.PostAsync(_options.ApiEndpoint, content);
 
-                // Log response status
                 _logger.LogInformation($"Claude API response status: {response.StatusCode}");
 
                 // Get response content even if it's an error
                 var responseString = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation($"Response content: {responseString}");
 
-                // Ensure the request was successful
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError($"Claude API error: {response.StatusCode}, Content: {responseString}");
                     throw new HttpRequestException($"Claude API returned {response.StatusCode}: {responseString}");
                 }
 
-                // Parse the response
                 var claudeResponse = JsonSerializer.Deserialize<ClaudeResponse>(responseString, jsonOptions);
 
                 // Add assistant's response to conversation history with proper content format
@@ -406,15 +386,8 @@ namespace TestAiAgent.Tooling
         /// </summary>
         public void RegisterTool(ITool tool)
         {
-            var toolName = tool.Definition.Name;
-
-            if (_tools.ContainsKey(toolName))
-            {
-                _logger.LogWarning($"Tool with name {toolName} already exists and will be replaced");
-            }
-
-            _tools[toolName] = tool;
-            _logger.LogInformation($"Tool {toolName} registered");
+            _tools[tool.Definition.Name] = tool;
+            _logger.LogInformation($"Tool {tool.Definition.Name} registered");
         }
 
         /// <summary>
@@ -478,7 +451,7 @@ namespace TestAiAgent.Tooling.Tools
 
         public WeatherTool(
             IHttpClientFactory httpClientFactory,
-            Microsoft.Extensions.Options.IOptions<ToolOptions> options,
+            IOptions<ToolOptions> options,
             ILogger<WeatherTool> logger)
         {
             _httpClient = httpClientFactory.CreateClient();
@@ -524,27 +497,21 @@ namespace TestAiAgent.Tooling.Tools
         {
             try
             {
-                // Extract input parameters
                 var location = input.GetProperty("location").GetString();
-                var units = input.TryGetProperty("units", out var unitsElement)
-                    ? unitsElement.GetString()
-                    : "metric";
+                var units = input.TryGetProperty("units", out var unitsElement) ? unitsElement.GetString() : "metric";
 
-                // Parse the location to extract just the city name
+                // todo: probably don't need this anymore...
                 var cityName = ParseCityName(location);
 
-                // Build the API URL
                 var url = $"{_options.ApiEndpoint}?q={Uri.EscapeDataString(cityName)}&units={units}&appid={_options.ApiKey}";
 
                 // Send the request
                 var response = await _httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                // Parse the response
                 var weatherData = await response.Content.ReadAsStringAsync();
                 var weatherJson = JsonDocument.Parse(weatherData);
 
-                // Format a user-friendly response
                 var root = weatherJson.RootElement;
                 var main = root.GetProperty("main");
                 var weather = root.GetProperty("weather")[0];
@@ -564,7 +531,7 @@ namespace TestAiAgent.Tooling.Tools
                     city = apiCityName,
                     temperature = $"{temp}{unitSymbol}",
                     feels_like = $"{feelsLike}{unitSymbol}",
-                    description = description,
+                    description,
                     wind_speed = $"{windSpeed} {windUnit}",
                     humidity = $"{main.GetProperty("humidity").GetInt32()}%",
                     raw_data = weatherJson.RootElement
@@ -665,34 +632,23 @@ namespace TestAiAgent.Orchestrator
                 // Initialize conversation history if not provided
                 conversationHistory ??= new List<Message>();
 
-                // Ensure tools are registered
                 EnsureToolsRegistered();
 
-                // Get available tools
                 var availableTools = _toolRegistry.GetAvailableTools();
-                _logger.LogInformation($"Available tools for processing: {availableTools.Count}");
 
-                // Send the message to Claude
-                _logger.LogInformation("Sending message to Claude with tools");
                 var claudeResponse = await _claudeClient.SendMessageAsync(userMessage, conversationHistory, availableTools);
-                _logger.LogInformation("Received response from Claude");
 
-                // Check if Claude wants to use a tool
                 if (claudeResponse.StopReason == "tool_use")
                 {
                     var toolUse = claudeResponse.Content.SingleOrDefault(item => item.Type == "tool_use");
                     var toolName = toolUse?.Name;
                     var toolId = toolUse?.Id;
 
-                    _logger.LogInformation($"Claude requested to use tool: {toolName} with ID: {toolId}");
-
                     if (_toolRegistry.HasTool(toolName))
                     {
                         // Get the tool and execute it
                         var tool = _toolRegistry.GetToolByName(toolName);
-                        _logger.LogInformation($"Executing tool: {toolName}");
                         var toolResult = await tool.ExecuteAsync(toolUse.Input);
-                        _logger.LogInformation("Tool execution completed");
 
                         // Remove the last message that was automatically added by SendMessageAsync
                         // This ensures we don't duplicate the assistant message
@@ -738,11 +694,9 @@ namespace TestAiAgent.Orchestrator
 
                         return finalResponse.GetTextContent();
                     }
-                    else
-                    {
-                        _logger.LogWarning($"Claude requested a tool that doesn't exist: {toolName}");
-                        return $"I apologize, but I don't have access to the tool '{toolName}' that would help answer your question.";
-                    }
+
+                    _logger.LogWarning($"Claude requested a tool that doesn't exist: {toolName}");
+                    return $"I apologize, but I don't have access to the tool '{toolName}' that would help answer your question.";
                 }
 
                 // If no tool was used, return Claude's response directly
