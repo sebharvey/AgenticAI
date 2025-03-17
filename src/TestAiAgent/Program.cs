@@ -144,8 +144,8 @@ namespace TestAiAgent
                 {
                     Role = "user",
                     Content = new List<ContentItem> {
-                        new ContentItem { Type = "text", Text = userMessage }
-                    }
+                new ContentItem { Type = "text", Text = userMessage }
+            }
                 });
 
                 _logger.LogInformation($"Sending message to Claude. Message length: {userMessage.Length} chars");
@@ -199,16 +199,18 @@ namespace TestAiAgent
                 // Parse the response
                 var claudeResponse = JsonSerializer.Deserialize<ClaudeResponse>(responseString, jsonOptions);
 
-                _logger.LogInformation($"Claude response parsed successfully. Tool use: {(claudeResponse.ToolUse != null ? "Yes" : "No")}");
-
                 // Add assistant's response to conversation history with proper content format
+                // Make sure to preserve ALL properties for tool interactions
                 conversationHistory.Add(new Message
                 {
                     Role = "assistant",
                     Content = claudeResponse.Content.Select(c => new ContentItem
                     {
                         Type = c.Type,
-                        Text = c.Text
+                        Text = c.Text,
+                        Id = c.Id,
+                        Name = c.Name,
+                        Input = c.Type == "tool_use" ? c.Input : null
                     }).ToList()
                 });
 
@@ -237,6 +239,10 @@ namespace TestAiAgent
     {
         public string Type { get; set; } = "text";
         public string Text { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
+        [JsonPropertyName("input")]
+        public JsonElement? Input { get; set; }
     }
 
     /// <summary>
@@ -268,9 +274,6 @@ namespace TestAiAgent
 
         public string Role => "assistant";
 
-        [JsonPropertyName("tool_use")]
-        public ToolUse ToolUse { get; set; }
-
         public string Model { get; set; }
 
 
@@ -291,6 +294,9 @@ namespace TestAiAgent
     {
         public string Type { get; set; }
         public string Text { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public JsonElement Input { get; set; }
     }
 
     /// <summary>
@@ -342,16 +348,6 @@ namespace TestAiAgent
         public string Description { get; set; }
     }
 
-    /// <summary>
-    /// Tool use information in Claude response
-    /// </summary>
-    public class ToolUse
-    {
-        public string Id { get; set; }
-        public string Name { get; set; }
-        public JsonElement Input { get; set; }
-    }
-    
     /// <summary>
     /// Token usage information
     /// </summary>
@@ -470,7 +466,7 @@ namespace TestAiAgent
         public Tool Definition => new Tool
         {
             Name = "get_weather",
-            Description = "Get current weather information for a specific location",
+            Description = "Get current weather information for a specific location. The API works best with just city names without state/country information.",
             InputSchema = new InputSchema
             {
                 Type = "object",
@@ -480,7 +476,7 @@ namespace TestAiAgent
                         "location", new SchemaProperty
                         {
                             Type = "string",
-                            Description = "The city and state/country (e.g., 'San Francisco, CA' or 'London, UK')"
+                            Description = "The city name (e.g., 'New York' or 'London'). Just the city name works best - no need to include state or country."
                         }
                     },
                     {
@@ -508,8 +504,11 @@ namespace TestAiAgent
                     ? unitsElement.GetString()
                     : "metric";
 
+                // Parse the location to extract just the city name
+                var cityName = ParseCityName(location);
+
                 // Build the API URL
-                var url = $"{_options.ApiEndpoint}?q={Uri.EscapeDataString(location)}&units={units}&appid={_options.ApiKey}";
+                var url = $"{_options.ApiEndpoint}?q={Uri.EscapeDataString(cityName)}&units={units}&appid={_options.ApiKey}";
 
                 // Send the request
                 var response = await _httpClient.GetAsync(url);
@@ -529,14 +528,14 @@ namespace TestAiAgent
                 var feelsLike = main.GetProperty("feels_like").GetDouble();
                 var description = weather.GetProperty("description").GetString();
                 var windSpeed = wind.GetProperty("speed").GetDouble();
-                var cityName = root.GetProperty("name").GetString();
+                var apiCityName = root.GetProperty("name").GetString();
 
                 var unitSymbol = units == "metric" ? "°C" : "°F";
                 var windUnit = units == "metric" ? "m/s" : "mph";
 
                 return JsonSerializer.Serialize(new
                 {
-                    city = cityName,
+                    city = apiCityName,
                     temperature = $"{temp}{unitSymbol}",
                     feels_like = $"{feelsLike}{unitSymbol}",
                     description = description,
@@ -553,6 +552,22 @@ namespace TestAiAgent
                     error = $"Failed to retrieve weather data: {ex.Message}"
                 });
             }
+        }
+
+        /// <summary>
+        /// Parses a location string to extract just the city name
+        /// </summary>
+        private string ParseCityName(string location)
+        {
+            if (string.IsNullOrWhiteSpace(location))
+            {
+                return string.Empty;
+            }
+
+            // If the location contains a comma, take only the part before the first comma
+            // This handles formats like "New York, NY" or "London, UK"
+            var parts = location.Split(',');
+            return parts[0].Trim();
         }
     }
 
@@ -627,53 +642,67 @@ namespace TestAiAgent
                 var availableTools = _toolRegistry.GetAvailableTools();
                 _logger.LogInformation($"Available tools for processing: {availableTools.Count}");
 
-                foreach (var tool in availableTools)
-                {
-                    _logger.LogInformation($"Tool available: {tool.Name}");
-                }
-
                 // Send the message to Claude
                 _logger.LogInformation("Sending message to Claude with tools");
                 var claudeResponse = await _claudeClient.SendMessageAsync(userMessage, conversationHistory, availableTools);
                 _logger.LogInformation("Received response from Claude");
 
                 // Check if Claude wants to use a tool
-                if (claudeResponse.ToolUse != null)
+                if (claudeResponse.StopReason == "tool_use")
                 {
-                    var toolName = claudeResponse.ToolUse.Name;
-                    _logger.LogInformation($"Claude requested to use tool: {toolName}");
+                    var toolUse = claudeResponse.Content.SingleOrDefault(item => item.Type == "tool_use");
+                    var toolName = toolUse?.Name;
+                    var toolId = toolUse?.Id;
+
+                    _logger.LogInformation($"Claude requested to use tool: {toolName} with ID: {toolId}");
 
                     if (_toolRegistry.HasTool(toolName))
                     {
                         // Get the tool and execute it
                         var tool = _toolRegistry.GetToolByName(toolName);
                         _logger.LogInformation($"Executing tool: {toolName}");
-                        var toolResult = await tool.ExecuteAsync(claudeResponse.ToolUse.Input);
+                        var toolResult = await tool.ExecuteAsync(toolUse.Input);
                         _logger.LogInformation("Tool execution completed");
 
-                        // Add the tool result to the conversation with proper format
+                        // Remove the last message that was automatically added by SendMessageAsync
+                        // This ensures we don't duplicate the assistant message
+                        conversationHistory.RemoveAt(conversationHistory.Count - 1);
+
+                        // Manually add Claude's response that requested the tool with all properties preserved
                         conversationHistory.Add(new Message
                         {
                             Role = "assistant",
                             Content = claudeResponse.Content.Select(c => new ContentItem
                             {
                                 Type = c.Type,
-                                Text = c.Text
+                                Text = c.Text,
+                                Id = c.Id,
+                                Name = c.Name,
+                                Input = c.Type == "tool_use" ? c.Input : null
                             }).ToList()
                         });
 
+                        // Now add the tool result as a user message
                         conversationHistory.Add(new Message
                         {
                             Role = "user",
-                            Content = new List<ContentItem> {
-                                new ContentItem { Type = "text", Text = $"Tool result: {toolResult}" }
+                            Content = new List<ContentItem>
+                            {
+                                new ContentItem
+                                {
+                                    Type = "tool_result",
+                                    Text = toolResult,
+                                    Id = toolId,
+                                    Name = toolName
+                                }
                             }
                         });
 
-                        // Send the tool result back to Claude
+                        // Send the tool result back to Claude WITHOUT adding the tool result as a message string
+                        // The tool result is already in the conversation history as a structured message
                         _logger.LogInformation("Sending tool result back to Claude");
                         var finalResponse = await _claudeClient.SendMessageAsync(
-                            $"Tool result: {toolResult}",
+                            $"Tool result: {toolResult}", // "", // Empty string instead of tool result as text
                             conversationHistory);
 
                         return finalResponse.GetTextContent();
