@@ -68,59 +68,62 @@ flowchart TB
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant API as Azure Functions API
-    participant Orchestrator as Agent Orchestrator
-    participant Registry as Tool Registry
-    participant Claude as Claude Client
-    participant ClaudeAPI as Claude API
-    participant Weather as Weather Tool
-    participant WeatherAPI as Weather API
+    actor Client
+    participant MF as TestAiAgent.Functions.MessageFunction
+    participant AO as TestAiAgent.Orchestrator.AgentOrchestrator
+    participant CC as TestAiAgent.LanguageModel.ClaudeClient
+    participant TR as TestAiAgent.Tooling.ToolRegistry
+    participant WT as TestAiAgent.Tooling.Tools.WeatherTool
+    participant Claude as Claude API
+    participant Weather as Weather API
     
-    User->>API: Send user query
-    API->>Orchestrator: ProcessUserMessageAsync(query)
+    Client->>MF: HTTP POST /api/messages
     
-    Note over Orchestrator: Initialize conversation if needed
+    MF->>MF: Deserialize MessageRequest
+    MF->>MF: Get/Create conversation history
     
-    Orchestrator->>Registry: EnsureToolsRegistered()
-    Registry-->>Orchestrator: Tools registered
+    MF->>AO: ProcessUserMessageAsync(message, history)
     
-    Orchestrator->>Registry: GetAvailableTools()
-    Registry-->>Orchestrator: List of available tools
+    AO->>AO: EnsureToolsRegistered()
+    AO->>TR: GetAvailableTools()
+    TR-->>AO: List<Tool>
     
-    Orchestrator->>Claude: SendMessageAsync(query, history, tools)
-    Claude->>ClaudeAPI: POST /v1/messages
+    AO->>CC: SendMessageAsync(message, history, tools)
     
-    Note over Claude,ClaudeAPI: Format content as proper JSON with tools
+    CC->>CC: Prepare ClaudeRequest
+    CC->>Claude: POST /v1/messages
+    Claude-->>CC: ClaudeResponse
     
-    ClaudeAPI-->>Claude: Claude response with toolUse
-    Claude-->>Orchestrator: ClaudeResponse
-    
-    alt Claude needs to use a tool
-        Note over Orchestrator: Check if tool exists
-        Orchestrator->>Registry: HasTool(toolName)
-        Registry-->>Orchestrator: Tool exists
+    alt Claude requests to use a tool
+        CC-->>AO: ClaudeResponse (stopReason: "tool_use")
         
-        Orchestrator->>Registry: GetToolByName(toolName)
-        Registry-->>Orchestrator: Tool instance
+        AO->>TR: HasTool(toolName)
+        TR-->>AO: true
         
-        Orchestrator->>Weather: ExecuteAsync(toolArguments)
-        Weather->>WeatherAPI: GET weather data
-        WeatherAPI-->>Weather: Weather data response
-        Weather-->>Orchestrator: Formatted tool result
+        AO->>TR: GetToolByName(toolName)
+        TR-->>AO: WeatherTool
         
-        Note over Orchestrator: Add tool interaction to conversation
+        AO->>WT: ExecuteAsync(toolInput)
         
-        Orchestrator->>Claude: SendMessageAsync(toolResult, updatedHistory)
-        Claude->>ClaudeAPI: POST /v1/messages
-        ClaudeAPI-->>Claude: Final response from Claude
-        Claude-->>Orchestrator: Final ClaudeResponse
-    else No tool needed
-        Note over Orchestrator: Use Claude's direct response
+        WT->>Weather: GET /data/2.5/weather
+        Weather-->>WT: Weather data
+        
+        WT-->>AO: Tool result (JSON)
+        
+        AO->>AO: Update conversation history
+        
+        AO->>CC: SendMessageAsync("", updatedHistory)
+        CC->>Claude: POST /v1/messages
+        Claude-->>CC: Final ClaudeResponse
+        CC-->>AO: Final ClaudeResponse
+    else Claude responds directly
+        CC-->>AO: ClaudeResponse
     end
     
-    Orchestrator-->>API: Final response text
-    API-->>User: Display response to user
+    AO-->>MF: Response text
+    
+    MF->>MF: Create HTTP response
+    MF-->>Client: HTTP 200 OK with response
 ```
 
 ## Prerequisites
