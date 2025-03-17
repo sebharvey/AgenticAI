@@ -6,6 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TestAiAgent.LanguageModel;
+using TestAiAgent.Models;
+using TestAiAgent.Orchestrator;
+using TestAiAgent.Tooling;
+using TestAiAgent.Tooling.Tools;
 
 namespace TestAiAgent
 {
@@ -66,7 +71,10 @@ namespace TestAiAgent
             host.Run();
         }
     }
+}
 
+namespace TestAiAgent.Models
+{
     /// <summary>
     /// Configuration options for Claude API
     /// </summary>
@@ -96,6 +104,128 @@ namespace TestAiAgent
         public string ApiEndpoint { get; set; } = "https://api.openweathermap.org/data/2.5/weather";
     }
 
+    /// <summary>
+    /// Updated Message model for the conversation
+    /// </summary>
+    public class Message
+    {
+        public string Role { get; set; }
+
+        [JsonPropertyName("content")]
+        public List<ContentItem> Content { get; set; } = new List<ContentItem>();
+    }
+
+    public class ContentItem
+    {
+        public string Type { get; set; } = "text";
+        public string Text { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
+        [JsonPropertyName("input")]
+        public JsonElement? Input { get; set; }
+        [JsonPropertyName("tool_use_id")]
+        public string ToolUseId { get; set; }
+    }
+
+    /// <summary>
+    /// Updated Claude API request model
+    /// </summary>
+    public class ClaudeRequest
+    {
+        public string Model { get; set; }
+        public List<Message> Messages { get; set; }
+
+        [JsonPropertyName("max_tokens")]
+        public int MaxTokens { get; set; }
+
+        public double Temperature { get; set; }
+        public List<Tool> Tools { get; set; }
+        public string System { get; set; }
+    }
+
+    /// <summary>
+    /// Updated Claude API response model
+    /// </summary>
+    public class ClaudeResponse
+    {
+        public string Id { get; set; }
+        public string Type { get; set; }
+
+        [JsonPropertyName("content")]
+        public List<ContentBlock> Content { get; set; }
+
+        public string Role => "assistant";
+
+        public string Model { get; set; }
+
+
+        [JsonPropertyName("stop_reason")]
+        public string StopReason { get; set; }
+
+        [JsonPropertyName("stop_sequence")]
+        public string StopSequence { get; set; }
+
+
+        public Usage Usage { get; set; }
+    }
+
+    /// <summary>
+    /// Content block model for Claude messages
+    /// </summary>
+    public class ContentBlock
+    {
+        public string Type { get; set; }
+        public string Text { get; set; }
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public JsonElement Input { get; set; }
+    }
+
+
+    /// <summary>
+    /// Tool model for describing available tools to Claude
+    /// </summary>
+    public class Tool
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+
+        [JsonPropertyName("input_schema")]
+        public InputSchema InputSchema { get; set; }
+    }
+
+    /// <summary>
+    /// Input schema for tool
+    /// </summary>
+    public class InputSchema
+    {
+        public string Type { get; set; } = "object";
+        public Dictionary<string, SchemaProperty> Properties { get; set; }
+        public List<string> Required { get; set; }
+    }
+
+    /// <summary>
+    /// Schema property definition
+    /// </summary>
+    public class SchemaProperty
+    {
+        public string Type { get; set; }
+        public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// Token usage information
+    /// </summary>
+    public class Usage
+    {
+        public int InputTokens { get; set; }
+        public int OutputTokens { get; set; }
+    }
+
+}
+
+namespace TestAiAgent.LanguageModel
+{
     /// <summary>
     /// Interface for the Claude API client
     /// </summary>
@@ -143,9 +273,10 @@ namespace TestAiAgent
                 conversationHistory.Add(new Message
                 {
                     Role = "user",
-                    Content = new List<ContentItem> {
-                new ContentItem { Type = "text", Text = userMessage }
-            }
+                    Content = new List<ContentItem>
+                    {
+                        new ContentItem { Type = "text", Text = userMessage }
+                    }
                 });
 
                 _logger.LogInformation($"Sending message to Claude. Message length: {userMessage.Length} chars");
@@ -161,7 +292,7 @@ namespace TestAiAgent
                 };
 
                 // Add tools if provided
-                if (availableTools != null && availableTools.Count > 0)
+                if (availableTools is { Count: > 0 })
                 {
                     requestPayload.Tools = availableTools;
                 }
@@ -225,81 +356,6 @@ namespace TestAiAgent
     }
 
     /// <summary>
-    /// Updated Message model for the conversation
-    /// </summary>
-    public class Message
-    {
-        public string Role { get; set; }
-
-        [JsonPropertyName("content")]
-        public List<ContentItem> Content { get; set; } = new List<ContentItem>();
-    }
-
-    public class ContentItem
-    {
-        public string Type { get; set; } = "text";
-        public string Text { get; set; }
-        public string Id { get; set; }
-        public string Name { get; set; }
-        [JsonPropertyName("input")]
-        public JsonElement? Input { get; set; }
-    }
-
-    /// <summary>
-    /// Updated Claude API request model
-    /// </summary>
-    public class ClaudeRequest
-    {
-        public string Model { get; set; }
-        public List<Message> Messages { get; set; }
-
-        [JsonPropertyName("max_tokens")]
-        public int MaxTokens { get; set; }
-
-        public double Temperature { get; set; }
-        public List<Tool> Tools { get; set; }
-        public string System { get; set; }
-    }
-
-    /// <summary>
-    /// Updated Claude API response model
-    /// </summary>
-    public class ClaudeResponse
-    {
-        public string Id { get; set; }
-        public string Type { get; set; }
-
-        [JsonPropertyName("content")]
-        public List<ContentBlock> Content { get; set; }
-
-        public string Role => "assistant";
-
-        public string Model { get; set; }
-
-
-        [JsonPropertyName("stop_reason")]
-        public string StopReason { get; set; }
-
-        [JsonPropertyName("stop_sequence")]
-        public string StopSequence { get; set; }
-
-
-        public Usage Usage { get; set; }
-    }
-
-    /// <summary>
-    /// Content block model for Claude messages
-    /// </summary>
-    public class ContentBlock
-    {
-        public string Type { get; set; }
-        public string Text { get; set; }
-        public string Id { get; set; }
-        public string Name { get; set; }
-        public JsonElement Input { get; set; }
-    }
-
-    /// <summary>
     /// Extension method to get content as string
     /// </summary>
     public static class ClaudeResponseExtensions
@@ -317,46 +373,10 @@ namespace TestAiAgent
         }
     }
 
-    /// <summary>
-    /// Tool model for describing available tools to Claude
-    /// </summary>
-    public class Tool
-    {
-        public string Name { get; set; }
-        public string Description { get; set; }
+}
 
-        [JsonPropertyName("input_schema")]
-        public InputSchema InputSchema { get; set; }
-    }
-
-    /// <summary>
-    /// Input schema for tool
-    /// </summary>
-    public class InputSchema
-    {
-        public string Type { get; set; } = "object";
-        public Dictionary<string, SchemaProperty> Properties { get; set; }
-        public List<string> Required { get; set; }
-    }
-
-    /// <summary>
-    /// Schema property definition
-    /// </summary>
-    public class SchemaProperty
-    {
-        public string Type { get; set; }
-        public string Description { get; set; }
-    }
-
-    /// <summary>
-    /// Token usage information
-    /// </summary>
-    public class Usage
-    {
-        public int InputTokens { get; set; }
-        public int OutputTokens { get; set; }
-    }
-
+namespace TestAiAgent.Tooling
+{
     /// <summary>
     /// Interface for tool registry to manage available tools
     /// </summary>
@@ -436,10 +456,16 @@ namespace TestAiAgent
         Task<string> ExecuteAsync(JsonElement input);
     }
 
+}
+
+namespace TestAiAgent.Tooling.Tools
+{
     /// <summary>
     /// Weather tool implementation for retrieving weather data
     /// </summary>
-    public interface IWeatherTool : ITool { }
+    public interface IWeatherTool : ITool
+    {
+    }
 
     /// <summary>
     /// Weather tool implementation
@@ -557,6 +583,7 @@ namespace TestAiAgent
         /// <summary>
         /// Parses a location string to extract just the city name
         /// </summary>
+        /// todo: I think this can be removed, this should be formatted by the LLM based on the definition
         private string ParseCityName(string location)
         {
             if (string.IsNullOrWhiteSpace(location))
@@ -570,7 +597,10 @@ namespace TestAiAgent
             return parts[0].Trim();
         }
     }
+}
 
+namespace TestAiAgent.Orchestrator
+{
     /// <summary>
     /// Interface for the agent orchestrator that coordinates the Claude client and tools
     /// </summary>
@@ -588,8 +618,8 @@ namespace TestAiAgent
         private readonly IToolRegistry _toolRegistry;
         private readonly IWeatherTool _weatherTool;
         private readonly ILogger<AgentOrchestrator> _logger;
-        private static bool _toolsRegistered = false;
-        private static readonly object _initLock = new object();
+        private static bool _toolsRegistered;
+        private static readonly object InitLock = new();
 
         public AgentOrchestrator(
             IClaudeClient claudeClient,
@@ -613,7 +643,7 @@ namespace TestAiAgent
         {
             if (!_toolsRegistered)
             {
-                lock (_initLock)
+                lock (InitLock)
                 {
                     if (!_toolsRegistered)
                     {
@@ -682,27 +712,28 @@ namespace TestAiAgent
                             }).ToList()
                         });
 
-                        // Now add the tool result as a user message
+                        // Now add the tool result as a user message with the correct tool_use_id field
                         conversationHistory.Add(new Message
                         {
                             Role = "user",
-                            Content = new List<ContentItem>
-                            {
-                                new ContentItem
-                                {
-                                    Type = "tool_result",
-                                    Text = toolResult,
-                                    Id = toolId,
-                                    Name = toolName
-                                }
-                            }
+                            Content = new List<ContentItem> {
+                        new()
+                        {
+                            Type = "tool_result",
+                            Text = toolResult,
+                            // Note: We keep the Id field but also set the ToolUseId field for the API
+                            Id = toolId,
+                            ToolUseId = toolId,  // This is the critical field Claude expects
+                            Name = toolName
+                        }
+                    }
                         });
 
-                        // Send the tool result back to Claude WITHOUT adding the tool result as a message string
+                        // Send the tool result back to Claude WITHOUT adding an additional message
                         // The tool result is already in the conversation history as a structured message
                         _logger.LogInformation("Sending tool result back to Claude");
                         var finalResponse = await _claudeClient.SendMessageAsync(
-                            $"Tool result: {toolResult}", // "", // Empty string instead of tool result as text
+                            "", // Empty string instead of tool result as text
                             conversationHistory);
 
                         return finalResponse.GetTextContent();

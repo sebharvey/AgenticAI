@@ -3,6 +3,8 @@ using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using TestAiAgent.Models;
+using TestAiAgent.Orchestrator;
 
 namespace TestAiAgent.Functions
 {
@@ -16,8 +18,7 @@ namespace TestAiAgent.Functions
 
         // Dictionary to store conversation history for each session
         // Note: In production, use a persistent storage like Azure Table Storage
-        private static readonly Dictionary<string, List<Message>> _sessionConversations =
-            new Dictionary<string, List<Message>>();
+        private static readonly Dictionary<string, List<Message>> SessionConversations = new();
 
         public MessageFunction(
             IAgentOrchestrator orchestrator,
@@ -58,10 +59,10 @@ namespace TestAiAgent.Functions
                 }
 
                 // Get or create conversation history for this session
-                var sessionId = request.SessionId ?? "default";
-                if (!_sessionConversations.ContainsKey(sessionId))
+                var sessionId = request.SessionId;
+                if (!SessionConversations.ContainsKey(sessionId))
                 {
-                    _sessionConversations[sessionId] = new List<Message>();
+                    SessionConversations[sessionId] = new List<Message>();
                     _logger.LogInformation($"Created new session: {sessionId}");
                 }
 
@@ -70,7 +71,7 @@ namespace TestAiAgent.Functions
                 // Process the message with conversation history
                 var response = await _orchestrator.ProcessUserMessageAsync(
                     request.Message,
-                    _sessionConversations[sessionId]);
+                    SessionConversations[sessionId]);
 
                 _logger.LogInformation($"Response generated: {response.Substring(0, Math.Min(100, response.Length))}...");
 
@@ -105,9 +106,9 @@ namespace TestAiAgent.Functions
         {
             _logger.LogInformation($"Clearing session: {sessionId}");
 
-            if (_sessionConversations.ContainsKey(sessionId))
+            if (SessionConversations.ContainsKey(sessionId))
             {
-                _sessionConversations.Remove(sessionId);
+                SessionConversations.Remove(sessionId);
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(new { message = "Session cleared successfully" });
@@ -131,10 +132,10 @@ namespace TestAiAgent.Functions
         {
             _logger.LogInformation($"Getting history for session: {sessionId}");
 
-            if (_sessionConversations.ContainsKey(sessionId))
+            if (SessionConversations.ContainsKey(sessionId))
             {
                 var response = req.CreateResponse(HttpStatusCode.OK);
-                await response.WriteAsJsonAsync(new { history = _sessionConversations[sessionId] });
+                await response.WriteAsJsonAsync(new { history = SessionConversations[sessionId] });
 
                 return response;
             }
