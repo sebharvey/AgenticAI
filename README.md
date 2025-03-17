@@ -56,14 +56,28 @@ flowchart TB
         FutureTool2 -.- ExternalAPI2[(External API 2)]
     end
     
-    style Claude fill:#9DB0E3
-    style Orchestrator fill:#FFD580
-    style ToolRegistry fill:#C1E1C1
-    style WeatherTool fill:#C1E1C1
-    style FutureTool1 fill:#C1E1C1,stroke-dasharray: 5 5
-    style FutureTool2 fill:#C1E1C1,stroke-dasharray: 5 5
-    style ExternalAPI1 fill:#FAD9D9,stroke-dasharray: 5 5
-    style ExternalAPI2 fill:#FAD9D9,stroke-dasharray: 5 5
+    classDef userNode fill:#F8D7DA,stroke:#721C24,color:#721C24,stroke-width:2px
+    classDef apiNode fill:#D1ECF1,stroke:#0C5460,color:#0C5460,stroke-width:2px
+    classDef orchestratorNode fill:#D4EDDA,stroke:#155724,color:#155724,stroke-width:2px
+    classDef toolRegistryNode fill:#FFF3CD,stroke:#856404,color:#856404,stroke-width:2px
+    classDef toolNode fill:#E2E3E5,stroke:#383D41,color:#383D41,stroke-width:2px
+    classDef futureToolNode fill:#E2E3E5,stroke:#383D41,color:#383D41,stroke-width:2px,stroke-dasharray:5 5
+    classDef claudeNode fill:#CCE5FF,stroke:#004085,color:#004085,stroke-width:2px
+    classDef externalNode fill:#F5C6CB,stroke:#721C24,color:#721C24,stroke-width:2px
+    classDef futureExternalNode fill:#F5C6CB,stroke:#721C24,color:#721C24,stroke-width:2px,stroke-dasharray:5 5
+    
+    class User userNode
+    class API apiNode
+    class Orchestrator orchestratorNode
+    class ToolRegistry toolRegistryNode
+    class WeatherTool toolNode
+    class FutureTool1,FutureTool2 futureToolNode
+    class Claude,ClaudeAPI claudeNode
+    class WeatherAPI externalNode
+    class ExternalAPI1,ExternalAPI2 futureExternalNode
+    
+    linkStyle default stroke-width:2px,fill:none,stroke:gray
+    
 ```
 
 ```mermaid
