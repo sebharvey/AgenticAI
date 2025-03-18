@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,8 +25,8 @@ namespace TestAiAgent
 
                     if (context.HostingEnvironment.IsProduction())
                     {
-                        var builtConfig = config.Build();
-                        var keyVaultUrl = builtConfig["KeyVault:Url"];
+                        //var builtConfig = config.Build();
+                        //var keyVaultUrl = builtConfig["KeyVault:Url"];
 
                         //config.AddAzureKeyVault(
                         //    new Uri(keyVaultUrl),
@@ -45,7 +46,7 @@ namespace TestAiAgent
                     services.AddSingleton<IClaudeClient, ClaudeClient>();
                     services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
                     services.AddSingleton<IToolRegistry, ToolRegistry>();
-                    
+
                     // Tools
                     services.AddSingleton<IWeatherTool, WeatherTool>();
                     services.AddSingleton<IFlightSearchTool, FlightSearchTool>();
