@@ -43,9 +43,12 @@ namespace TestAiAgent
                     services.AddHttpClient();
 
                     services.AddSingleton<IClaudeClient, ClaudeClient>();
-                    services.AddSingleton<IToolRegistry, ToolRegistry>();
-                    services.AddSingleton<IWeatherTool, WeatherTool>();
                     services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
+                    services.AddSingleton<IToolRegistry, ToolRegistry>();
+                    
+                    // Tools
+                    services.AddSingleton<IWeatherTool, WeatherTool>();
+                    services.AddSingleton<IFlightSearchTool, FlightSearchTool>();
 
                     services.Configure<JsonSerializerOptions>(options =>
                     {

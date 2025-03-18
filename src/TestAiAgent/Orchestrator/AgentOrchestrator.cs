@@ -14,12 +14,14 @@ namespace TestAiAgent.Orchestrator
         private readonly IClaudeClient _claudeClient;
         private readonly IToolRegistry _toolRegistry;
         private readonly IWeatherTool _weatherTool;
+        private readonly IFlightSearchTool _flightSearchTool;
         private readonly ILogger<AgentOrchestrator> _logger;
         private static bool _toolsRegistered;
         private static readonly object InitLock = new();
 
         public AgentOrchestrator(
             IClaudeClient claudeClient,
+            IFlightSearchTool flightSearchTool,
             IToolRegistry toolRegistry,
             IWeatherTool weatherTool,
             ILogger<AgentOrchestrator> logger)
@@ -27,6 +29,7 @@ namespace TestAiAgent.Orchestrator
             _claudeClient = claudeClient;
             _toolRegistry = toolRegistry;
             _weatherTool = weatherTool;
+            _flightSearchTool = flightSearchTool;
             _logger = logger;
 
             // Ensure tools are registered
@@ -45,6 +48,8 @@ namespace TestAiAgent.Orchestrator
                     if (!_toolsRegistered)
                     {
                         _toolRegistry.RegisterTool(_weatherTool);
+                        _toolRegistry.RegisterTool(_flightSearchTool);
+
                         _logger.LogInformation("Weather tool registered successfully");
                         _toolsRegistered = true;
                     }

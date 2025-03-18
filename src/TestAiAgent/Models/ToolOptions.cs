@@ -6,5 +6,6 @@ namespace TestAiAgent.Models
     public class ToolOptions
     {
         public WeatherToolOptions Weather { get; set; }
+        public FlightSearchToolOptions FlightSearch { get; set; }
     }
 }
