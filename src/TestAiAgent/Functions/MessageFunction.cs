@@ -146,6 +146,25 @@ namespace TestAiAgent.Functions
             return notFoundResponse;
         }
 
+        /// <summary>
+        /// Returns a simple heartbeat response to verify the function app is running
+        /// </summary>
+        [Function("Heartbeat")]
+        public async Task<HttpResponseData> Heartbeat([HttpTrigger(AuthorizationLevel.Function, "get", Route = "heartbeat")] HttpRequestData req)
+        {
+            _logger.LogInformation("Heartbeat function triggered");
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                status = "alive",
+                timestamp = DateTime.UtcNow.ToString("o"),
+                message = "Claude Agent API is operational"
+            });
+
+            return response;
+        }
+
         public class MessageRequest
         {
             public string Message { get; set; }
