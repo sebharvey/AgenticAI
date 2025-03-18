@@ -5,5 +5,5 @@ namespace TestAiAgent.Models;
 /// </summary>
 public class FlightSearchToolOptions
 {
-    public string ApiEndpoint { get; set; } = "https://testresources.virginatlantic.com/sit/graphQL/Search/public";
+    public string ApiEndpoint { get; set; }
 }
