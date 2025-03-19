@@ -35,7 +35,7 @@ namespace TestAiAgent.Functions
         /// </summary>
         [Function("ProcessMessage")]
         public async Task<HttpResponseData> ProcessMessage(
-            [HttpTrigger(AuthorizationLevel.Function, "post", Route = "messages")] HttpRequestData req)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "messages")] HttpRequestData req)
         {
             _logger.LogInformation("Processing message request");
 
@@ -101,7 +101,7 @@ namespace TestAiAgent.Functions
         /// </summary>
         [Function("ClearSession")]
         public async Task<HttpResponseData> ClearSession(
-            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = "sessions/{sessionId}")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "sessions/{sessionId}")] HttpRequestData req,
             string sessionId)
         {
             _logger.LogInformation($"Clearing session: {sessionId}");
@@ -127,7 +127,7 @@ namespace TestAiAgent.Functions
         /// </summary>
         [Function("GetSessionHistory")]
         public async Task<HttpResponseData> GetSessionHistory(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "sessions/{sessionId}")] HttpRequestData req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "sessions/{sessionId}")] HttpRequestData req,
             string sessionId)
         {
             _logger.LogInformation($"Getting history for session: {sessionId}");
@@ -150,7 +150,7 @@ namespace TestAiAgent.Functions
         /// Returns a simple heartbeat response to verify the function app is running
         /// </summary>
         [Function("Heartbeat")]
-        public async Task<HttpResponseData> Heartbeat([HttpTrigger(AuthorizationLevel.Function, "get", Route = "heartbeat")] HttpRequestData req)
+        public async Task<HttpResponseData> Heartbeat([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "heartbeat")] HttpRequestData req)
         {
             _logger.LogInformation("Heartbeat function triggered");
 
