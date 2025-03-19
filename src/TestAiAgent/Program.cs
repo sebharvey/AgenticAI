@@ -17,11 +17,16 @@ namespace TestAiAgent
         public static void Main(string[] args)
         {
             var host = new HostBuilder()
-                .ConfigureFunctionsWebApplication()
+                .ConfigureLogging((context, logging) =>
+                {
+                    logging.ClearProviders(); // Remove all default providers including Console
+                    logging.AddDebug(); // Add only Debug provider
+                    logging.SetMinimumLevel(LogLevel.Debug);
+                })
                 .ConfigureAppConfiguration((context, config) =>
                 {
                     config.AddJsonFile("appsettings.json", optional: false);
-                    config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true);
+                    //config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true);
 
                     if (context.HostingEnvironment.IsProduction())
                     {
@@ -37,12 +42,14 @@ namespace TestAiAgent
                     config.AddCommandLine(args);
                     config.Build();
                 })
+                .ConfigureFunctionsWebApplication()
                 .ConfigureServices((context, services) =>
                 {
+                    services.AddApplicationServices(context.Configuration);
+                    services.AddHttpClient();
+                    
                     services.Configure<ClaudeOptions>(context.Configuration.GetSection("Claude"));
                     services.Configure<ToolOptions>(context.Configuration.GetSection("Tools"));
-
-                    services.AddHttpClient();
 
                     services.AddSingleton<IClaudeClient, ClaudeClient>();
                     services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
