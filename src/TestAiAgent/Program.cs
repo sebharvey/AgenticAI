@@ -35,6 +35,7 @@ namespace TestAiAgent
 
                     config.AddEnvironmentVariables();
                     config.AddCommandLine(args);
+                    config.Build();
                 })
                 .ConfigureServices((context, services) =>
                 {
