@@ -47,7 +47,7 @@ namespace TestAiAgent
                 .ConfigureFunctionsWebApplication()
                 .ConfigureServices((context, services) =>
                 {
-                    services.AddApplicationServices(context.Configuration);
+                    //services.AddApplicationServices(context.Configuration);
                     services.AddHttpClient();
                     
                     services.Configure<ClaudeOptions>(context.Configuration.GetSection("Claude"));
