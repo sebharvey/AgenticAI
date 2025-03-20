@@ -47,27 +47,68 @@
         .assistant-message {
             background-color: #f1f1f1;
             align-self: flex-start;
-            line-height: 1.5;
-            white-space: pre-wrap;
+            line-height: 1.6;
         }
 
-        /* Markdown formatting */
-        .formatted-text p {
-            margin: 0 0 10px 0;
+        /* Markdown styling */
+        .formatted-message {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
-
-        .formatted-text ul, 
-        .formatted-text ol {
-            margin: 0 0 10px 0;
-            padding-left: 25px;
-        }
-
-        .formatted-text li {
-            margin-bottom: 5px;
-        }
-
-        .formatted-text strong {
+        
+        .formatted-message h2 {
+            font-size: 1.5em;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
             font-weight: 600;
+        }
+        
+        .formatted-message h3 {
+            font-size: 1.25em;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+        
+        .formatted-message ul {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            padding-left: 2em;
+        }
+        
+        .formatted-message ol {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            padding-left: 2em;
+        }
+        
+        .formatted-message li {
+            margin-bottom: 0.25em;
+        }
+        
+        .formatted-message p {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+        
+        .formatted-message pre {
+            background-color: #f5f5f5;
+            padding: 1em;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 0.5em 0;
+        }
+        
+        .formatted-message code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f5f5f5;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        
+        .formatted-message pre code {
+            padding: 0;
+            background-color: transparent;
         }
 
         .input-container {
@@ -176,41 +217,90 @@
             return messageElement;
         }
 
-        // Convert Markdown to HTML
-        function markdownToHtml(text) {
-            // Handle newlines first
-            let html = text.replace(/\n\n/g, '</p><p>');
+        // Format markdown to HTML
+        function formatMarkdown(text) {
+            // Clone the text to work with
+            let formattedText = text;
             
-            // Convert bullet points (dash or asterisk)
-            html = html.replace(/^[\s]*[-*][\s]+(.*?)$/gm, '<li>$1</li>');
-            
-            // Wrap consecutive list items in ul tags
-            html = html.replace(/(<li>.*?<\/li>)(\n<li>.*?<\/li>)+/g, '<ul>$&</ul>');
-            
-            // Clean up any list items not in a list
-            html = html.replace(/<li>(.*?)<\/li>/g, function(match) {
-                if (match.indexOf('<ul>') === -1) {
-                    return '<ul>' + match + '</ul>';
-                }
-                return match;
+            // Handle code blocks
+            formattedText = formattedText.replace(/```([\s\S]*?)```/g, function(match, code) {
+                return '<pre><code>' + code.trim() + '</code></pre>';
             });
             
-            // Bold text (both ** and __ styles)
-            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+            // Handle inline code
+            formattedText = formattedText.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            // Handle headings (## and ###)
+            formattedText = formattedText.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
+            formattedText = formattedText.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
             
-            // Fix paragraphs
-            if (!html.startsWith('<p>')) {
-                html = '<p>' + html;
+            // Handle bold text
+            formattedText = formattedText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Handle ordered lists (ensure we have a newline before starting)
+            formattedText = formattedText.replace(/(\n|^)(\d+\.\s+[^\n]+)(\n|$)/g, function(match, start, item, end) {
+                return start + '<ol><li>' + item.replace(/^\d+\.\s+/, '') + '</li></ol>' + end;
+            });
+            
+            // Combine consecutive ordered list items
+            let lastFormattedText = '';
+            while (lastFormattedText !== formattedText) {
+                lastFormattedText = formattedText;
+                formattedText = formattedText.replace(/<\/ol>\n<ol>/g, '');
             }
-            if (!html.endsWith('</p>')) {
-                html = html + '</p>';
+            
+            // Handle bullet points
+            const bulletPoints = formattedText.split('\n');
+            let inList = false;
+            let result = [];
+            
+            for (let i = 0; i < bulletPoints.length; i++) {
+                let line = bulletPoints[i];
+                
+                if (line.trim().startsWith('- ')) {
+                    // This is a bullet point
+                    if (!inList) {
+                        // Start a new list
+                        result.push('<ul>');
+                        inList = true;
+                    }
+                    
+                    // Add the list item (removing the '- ' prefix)
+                    result.push('<li>' + line.trim().substring(2) + '</li>');
+                } else {
+                    // Not a bullet point
+                    if (inList) {
+                        // End the current list
+                        result.push('</ul>');
+                        inList = false;
+                    }
+                    
+                    // Add the regular line
+                    result.push(line);
+                }
             }
             
-            // Fix single newlines (not after list items)
-            html = html.replace(/([^>])\n([^<])/g, '$1<br>$2');
+            // Close any open list
+            if (inList) {
+                result.push('</ul>');
+            }
             
-            return html;
+            // Join everything back together
+            formattedText = result.join('\n');
+            
+            // Handle paragraphs and line breaks
+            formattedText = formattedText.replace(/\n\n/g, '</p><p>');
+            formattedText = formattedText.replace(/\n/g, '<br>');
+            
+            // Wrap in paragraphs if not already
+            if (!formattedText.startsWith('<')) {
+                formattedText = '<p>' + formattedText;
+            }
+            if (!formattedText.endsWith('>')) {
+                formattedText = formattedText + '</p>';
+            }
+            
+            return formattedText;
         }
 
         // Type out the response word by word with formatting
@@ -233,13 +323,13 @@
                     // Once typing is done, apply markdown formatting
                     typingContainer.innerHTML = '';
                     const formattedDiv = document.createElement('div');
-                    formattedDiv.classList.add('formatted-text');
-                    formattedDiv.innerHTML = markdownToHtml(text);
+                    formattedDiv.classList.add('formatted-message');
+                    formattedDiv.innerHTML = formatMarkdown(text);
                     typingContainer.appendChild(formattedDiv);
                     
                     enableInput();
                 }
-            }, 50); // Adjust typing speed here (milliseconds per word)
+            }, 30); // Adjust typing speed here (milliseconds per word)
         }
 
         // Send a message to the API
