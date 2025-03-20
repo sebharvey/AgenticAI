@@ -219,51 +219,62 @@ namespace TestAiAgent.Tooling.Tools
                             }
                         }
                     },
-                    query = @"query SearchOffers($request: FlightOfferRequestInput!) { 
-                        searchOffers(request: $request) { 
-                            result { 
-                                slices { current total } 
-                                criteria { 
-                                    origin { code cityName countryName airportName } 
-                                    destination { code cityName countryName airportName } 
-                                    departing 
-                                } 
-                                slice { 
-                                    flightsAndFares { 
-                                        flight { 
-                                            segments { 
-                                                airline { code name } 
-                                                flightNumber 
-                                                operatingFlightNumber 
-                                                operatingAirline { code name } 
-                                                origin { code cityName } 
-                                                destination { code cityName } 
-                                                duration 
-                                                departure 
-                                                arrival 
-                                                stopCount 
-                                            } 
-                                            duration 
-                                            origin { code cityName } 
-                                            destination { code cityName } 
-                                            departure 
-                                            arrival 
-                                        } 
-                                        fares { 
-                                            availableSeatCount 
-                                            fareFamilyType 
-                                            price { 
-                                                amountIncludingTax 
-                                                currency 
-                                            } 
-                                            fareSegments { 
-                                                cabinName 
-                                            } 
-                                        } 
-                                    } 
-                                } 
-                            } 
-                        } 
+                    query = @"query SearchOffers($request: FlightOfferRequestInput!) {
+                      searchOffers(request: $request) {
+                        result {
+                          slices {
+                            current
+                            total
+                          }
+                          criteria {
+                            origin {
+                              code
+                            }
+                            destination {
+                              code
+                            }
+                            departing
+                          }
+                          slice {
+                            flightsAndFares {
+                              flight {
+                                segments {
+                                  flightNumber
+                                  operatingFlightNumber
+                                  origin {
+                                    code
+                                  }
+                                  destination {
+                                    code
+                                  }
+                                }
+                                duration
+                                origin {
+                                  code
+                                }
+                                destination {
+                                  code
+                                }
+                                departure
+                                arrival
+                              }
+                              fares {
+                                availability
+                                id
+                                price {
+                                  amountIncludingTax
+                                  currency
+                                }
+                                fareSegments {
+                                  cabinName
+                                }
+                                fareFamilyType
+                              }
+                            }
+                          }
+                          basketId
+                        }
+                      }
                     }"
                 };
 
@@ -313,11 +324,11 @@ namespace TestAiAgent.Tooling.Tools
                     {
                         segments.Add(new SegmentInfo
                         {
-                            Airline = segment.Airline.Code,
-                            AirlineName = segment.Airline.Name,
+                            Airline = segment.Airline?.Code,
+                            AirlineName = segment.Airline?.Name,
                             FlightNumber = segment.FlightNumber,
-                            OperatingAirline = segment.OperatingAirline.Code,
-                            OperatingAirlineName = segment.OperatingAirline.Name,
+                            OperatingAirline = segment.OperatingAirline?.Code,
+                            OperatingAirlineName = segment.OperatingAirline?.Name,
                             Origin = segment.Origin.Code,
                             OriginCity = segment.Origin.CityName,
                             Destination = segment.Destination.Code,
