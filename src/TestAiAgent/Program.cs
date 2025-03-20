@@ -27,7 +27,7 @@ namespace TestAiAgent
                 })
                 .ConfigureAppConfiguration((context, config) =>
                 {
-                    config.AddJsonFile("appsettings.json", optional: false);
+                    config.AddJsonFile("appsettings.json", optional: true);
                     //config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true);
 
                     if (context.HostingEnvironment.IsProduction())
