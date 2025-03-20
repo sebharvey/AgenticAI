@@ -352,24 +352,24 @@ namespace TestAiAgent.Tooling.Tools
                         {
                             CabinName = fare.FareSegments[0].CabinName,
                             FareType = fare.FareFamilyType,
-                            Price = fare.Price.AmountIncludingTax,
-                            Currency = fare.Price.Currency,
+                            Price = fare.Price?.AmountIncludingTax,
+                            Currency = fare.Price?.Currency,
                             AvailableSeats = fare.AvailableSeatCount ?? 0
                         });
                     }
 
                     flightResults.Add(new FlightResult
                     {
-                        Origin = flight.Origin.Code,
-                        OriginCity = flight.Origin.CityName,
-                        Destination = flight.Destination.Code,
-                        DestinationCity = flight.Destination.CityName,
+                        Origin = flight.Origin?.Code,
+                        OriginCity = flight.Origin?.CityName,
+                        Destination = flight.Destination?.Code,
+                        DestinationCity = flight.Destination?.CityName,
                         Departure = flight.Departure,
                         Arrival = flight.Arrival,
                         Duration = flight.Duration,
                         Segments = segments,
                         CabinPrices = cabinPrices,
-                        IsNonStop = flight.Segments.Count == 1
+                        IsNonStop = flight.Segments?.Count == 1
                     });
                 }
 
@@ -380,10 +380,10 @@ namespace TestAiAgent.Tooling.Tools
                     Flights = flightResults,
                     SearchCriteria = new SearchCriteria
                     {
-                        Origin = criteria.Origin.Code,
-                        OriginCity = criteria.Origin.CityName,
-                        Destination = criteria.Destination.Code,
-                        DestinationCity = criteria.Destination.CityName,
+                        Origin = criteria.Origin?.Code,
+                        OriginCity = criteria.Origin?.CityName,
+                        Destination = criteria.Destination?.Code,
+                        DestinationCity = criteria.Destination?.CityName,
                         DepartureDate = departureDateStr,
                         ReturnDate = parsedReturnDate?.ToString("yyyy-MM-dd"),
                         NonStopOnly = nonStopOnly
