@@ -352,7 +352,7 @@ namespace TestAiAgent.Tooling.Tools
                         {
                             CabinName = fare.FareSegments[0].CabinName,
                             FareType = fare.FareFamilyType,
-                            Price = fare.Price?.AmountIncludingTax,
+                            Price = fare.Price?.AmountIncludingTax ?? 0,
                             Currency = fare.Price?.Currency,
                             AvailableSeats = fare.AvailableSeatCount ?? 0
                         });
