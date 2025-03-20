@@ -47,6 +47,28 @@
         .assistant-message {
             background-color: #f1f1f1;
             align-self: flex-start;
+            line-height: 1.5;
+        }
+
+        /* Formatting for assistant messages */
+        .assistant-message p {
+            margin: 0 0 10px 0;
+        }
+
+        .assistant-message ul, 
+        .assistant-message ol {
+            margin-top: 0;
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+
+        .assistant-message li {
+            margin-bottom: 5px;
+        }
+
+        .assistant-message strong, 
+        .assistant-message b {
+            font-weight: 600;
         }
 
         .input-container {
@@ -101,6 +123,7 @@
 
         .typing-effect {
             display: inline-block;
+            white-space: pre-wrap;
         }
     </style>
 </head>
@@ -155,18 +178,125 @@
             return messageElement;
         }
 
+        // Format text with markdown-like syntax
+        function formatText(text) {
+            // Convert Markdown-style bullet points to HTML
+            const bulletPointRegex = /^(\s*)-\s+(.+)$/gm;
+            text = text.replace(bulletPointRegex, '<li>$2</li>');
+            
+            // Wrap consecutive list items in <ul> tags
+            const listItemRegex = /(<li>.+<\/li>\n?)+/g;
+            text = text.replace(listItemRegex, '<ul>$&</ul>');
+            
+            // Convert bold text (both ** and __ styles)
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+            
+            // Convert italic text
+            text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            text = text.replace(/_(.+?)_/g, '<em>$1</em>');
+            
+            // Convert paragraphs (double newlines)
+            text = text.replace(/\n\n/g, '</p><p>');
+            
+            // Handle remaining newlines (not in lists)
+            text = text.replace(/\n(?!<\/li>|<li>)/g, '<br>');
+            
+            // Wrap everything in paragraphs if not already
+            if (!text.startsWith('<p>')) {
+                text = '<p>' + text;
+            }
+            if (!text.endsWith('</p>')) {
+                text = text + '</p>';
+            }
+            
+            return text;
+        }
+
         // Type out the response word by word
         function typeResponse(messageElement, text) {
             const typingSpan = messageElement.querySelector('.typing-effect');
-            const words = text.split(' ');
+            
+            // Format the text with HTML
+            const formattedHTML = formatText(text);
+            
+            // Create temporary div to extract words while preserving HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = formattedHTML;
+            
+            // Get text nodes and their words
+            const textNodes = [];
+            const htmlNodes = [];
+            
+            function processNode(node) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    // Split text into words and add to array
+                    const words = node.textContent.split(' ');
+                    textNodes.push({
+                        node: node,
+                        words: words,
+                        html: false
+                    });
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    // For element nodes, store the HTML
+                    htmlNodes.push({
+                        html: node.outerHTML,
+                        tag: node.tagName.toLowerCase()
+                    });
+                    
+                    // Process child nodes
+                    for (let child of node.childNodes) {
+                        processNode(child);
+                    }
+                }
+            }
+            
+            // Process the formatted text
+            for (let node of tempDiv.childNodes) {
+                processNode(node);
+            }
+            
+            // Combine text and HTML nodes
+            const combinedNodes = [...textNodes, ...htmlNodes].sort((a, b) => {
+                // Sort based on the original document order
+                return a.node ? a.node.compareDocumentPosition(b.node) : 0;
+            });
+            
+            // Set HTML structure first
+            typingSpan.innerHTML = formattedHTML;
+            
+            // Now type the text content
+            let currentWordIndex = 0;
+            let visibleText = '';
+            
+            // Type out one word at a time
+            const typingInterval = setInterval(() => {
+                if (currentWordIndex < textNodes.length) {
+                    const currentNode = textNodes[currentWordIndex];
+                    visibleText += currentNode.word + ' ';
+                    typingSpan.innerHTML = visibleText;
+                    currentWordIndex++;
+                    messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                } else {
+                    clearInterval(typingInterval);
+                    enableInput();
+                }
+            }, 50);
+
+            // Simplified approach: Type out character by character
+            let allWords = text.split(' ');
             let wordIndex = 0;
             
+            typingSpan.innerHTML = '';
+            
             const typingInterval = setInterval(() => {
-                if (wordIndex < words.length) {
-                    typingSpan.textContent += (wordIndex > 0 ? ' ' : '') + words[wordIndex];
+                if (wordIndex < allWords.length) {
+                    typingSpan.innerHTML += (wordIndex > 0 ? ' ' : '') + allWords[wordIndex];
                     wordIndex++;
                     messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
                 } else {
+                    // When done typing, apply formatting
+                    typingSpan.innerHTML = formatText(text);
                     clearInterval(typingInterval);
                     enableInput();
                 }
