@@ -32,11 +32,11 @@ flowchart TB
         subgraph "Tool Registry"
             ToolRegistry[Tool Registry]
             WeatherTool[Weather Tool]
-            FutureTool1[Additional Tool 1]
+            FlightSearch[Flight Search]
             FutureTool2[Additional Tool 2]
             
             ToolRegistry --- WeatherTool
-            ToolRegistry --- FutureTool1
+            ToolRegistry --- FlightSearch
             ToolRegistry --- FutureTool2
         end
         
@@ -52,7 +52,7 @@ flowchart TB
         Orchestrator --- Claude
         
         WeatherTool --> WeatherAPI[(Weather API)]
-        FutureTool1 -.- ExternalAPI1[(External API 1)]
+        FlightSearch -.- GoogleFlights[(Google Flights)]
         FutureTool2 -.- ExternalAPI2[(External API 2)]
     end
     
@@ -71,10 +71,10 @@ flowchart TB
     class Orchestrator orchestratorNode
     class ToolRegistry toolRegistryNode
     class WeatherTool toolNode
-    class FutureTool1,FutureTool2 futureToolNode
+    class FlightSearch,FutureTool2 futureToolNode
     class Claude,ClaudeAPI claudeNode
     class WeatherAPI externalNode
-    class ExternalAPI1,ExternalAPI2 futureExternalNode
+    class GoogleFlights,ExternalAPI2 futureExternalNode
     
     linkStyle default stroke-width:2px,fill:none,stroke:gray
     
