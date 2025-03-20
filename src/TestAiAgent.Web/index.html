@@ -217,73 +217,7 @@
         function typeResponse(messageElement, text) {
             const typingSpan = messageElement.querySelector('.typing-effect');
             
-            // Format the text with HTML
-            const formattedHTML = formatText(text);
-            
-            // Create temporary div to extract words while preserving HTML
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = formattedHTML;
-            
-            // Get text nodes and their words
-            const textNodes = [];
-            const htmlNodes = [];
-            
-            function processNode(node) {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    // Split text into words and add to array
-                    const words = node.textContent.split(' ');
-                    textNodes.push({
-                        node: node,
-                        words: words,
-                        html: false
-                    });
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    // For element nodes, store the HTML
-                    htmlNodes.push({
-                        html: node.outerHTML,
-                        tag: node.tagName.toLowerCase()
-                    });
-                    
-                    // Process child nodes
-                    for (let child of node.childNodes) {
-                        processNode(child);
-                    }
-                }
-            }
-            
-            // Process the formatted text
-            for (let node of tempDiv.childNodes) {
-                processNode(node);
-            }
-            
-            // Combine text and HTML nodes
-            const combinedNodes = [...textNodes, ...htmlNodes].sort((a, b) => {
-                // Sort based on the original document order
-                return a.node ? a.node.compareDocumentPosition(b.node) : 0;
-            });
-            
-            // Set HTML structure first
-            typingSpan.innerHTML = formattedHTML;
-            
-            // Now type the text content
-            let currentWordIndex = 0;
-            let visibleText = '';
-            
-            // Type out one word at a time
-            const typingInterval = setInterval(() => {
-                if (currentWordIndex < textNodes.length) {
-                    const currentNode = textNodes[currentWordIndex];
-                    visibleText += currentNode.word + ' ';
-                    typingSpan.innerHTML = visibleText;
-                    currentWordIndex++;
-                    messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                } else {
-                    clearInterval(typingInterval);
-                    enableInput();
-                }
-            }, 50);
-
-            // Simplified approach: Type out character by character
+            // Simplified approach: Type out word by word
             let allWords = text.split(' ');
             let wordIndex = 0;
             
