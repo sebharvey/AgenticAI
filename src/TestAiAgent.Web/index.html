@@ -113,6 +113,7 @@
 
         .input-container {
             display: flex;
+            flex-direction: column;
             padding: 20px;
             background-color: white;
             border-top: 1px solid #e0e0e0;
@@ -164,6 +165,37 @@
         .typing-container {
             width: 100%;
         }
+        
+        /* Example prompts section */
+        .example-prompts {
+            margin-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 15px;
+        }
+
+        .example-prompt {
+            background-color: #f1f1f1;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .example-prompt:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .example-prompts-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .input-with-button {
+            display: flex;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -174,8 +206,16 @@
         <!-- Messages will be displayed here -->
     </div>
     <div class="input-container">
-        <input type="text" id="message-input" placeholder="Type your message here..." autofocus>
-        <button id="send-button">Send</button>
+        <div class="input-with-button">
+            <input type="text" id="message-input" placeholder="Type your message here..." autofocus>
+            <button id="send-button">Send</button>
+        </div>
+        <div class="example-prompts">
+            <div class="example-prompts-title">Try these example prompts:</div>
+            <div class="example-prompt" id="prompt1"></div>
+            <div class="example-prompt" id="prompt2">"What is the weather like at JFK at the moment? Is it a good day to fly?"</div>
+            <div class="example-prompt" id="prompt3"></div>
+        </div>
     </div>
 
     <script>
@@ -183,6 +223,7 @@
         const chatContainer = document.getElementById('chat-container');
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
+        const examplePrompts = document.querySelectorAll('.example-prompt');
 
         // Generate session ID (GUID)
         function generateGuid() {
@@ -195,6 +236,35 @@
 
         // Session ID for this chat session
         const sessionId = generateGuid();
+        
+        // Generate dates for example prompts (about 6 months in the future)
+        function generateFutureDates() {
+            const today = new Date();
+            
+            // First date (for JFK flight)
+            const firstDate = new Date(today);
+            firstDate.setMonth(today.getMonth() + 6);
+            const firstDay = firstDate.getDate();
+            const firstMonth = firstDate.toLocaleString('en-US', { month: 'long' });
+            const firstYear = firstDate.getFullYear();
+            
+            // Second date (for Atlanta flight, 3 weeks after first date)
+            const secondDate = new Date(firstDate);
+            secondDate.setDate(firstDate.getDate() + 21);
+            const secondDay = secondDate.getDate();
+            const secondMonth = secondDate.toLocaleString('en-US', { month: 'long' });
+            const secondYear = secondDate.getFullYear();
+            
+            // Set the prompt texts
+            document.getElementById('prompt1').textContent = 
+                `"What are the flights from London Heathrow to JFK on ${firstDay} ${firstMonth} ${firstYear}? I want to know prices per cabin and a recommendation on the cheapest flight I can take that takes the least amount of time."`;
+                
+            document.getElementById('prompt3').textContent = 
+                `"What is the quickest and cheapest flight from Heathrow to Atlanta on ${secondDay} ${secondMonth} ${secondYear}? Including non-direct flights."`;
+        }
+        
+        // Generate the dates when the page loads
+        generateFutureDates();
 
         // Add a new message to the chat
         function addMessage(text, isUser) {
@@ -382,6 +452,10 @@
             messageInput.disabled = true;
             sendButton.disabled = true;
             sendButton.innerHTML = '<div class="spinner"></div>';
+            examplePrompts.forEach(prompt => {
+                prompt.style.pointerEvents = 'none';
+                prompt.style.opacity = '0.5';
+            });
         }
 
         // Enable input after response is received
@@ -390,6 +464,10 @@
             sendButton.disabled = false;
             sendButton.textContent = 'Send';
             messageInput.focus();
+            examplePrompts.forEach(prompt => {
+                prompt.style.pointerEvents = 'auto';
+                prompt.style.opacity = '1';
+            });
         }
 
         // Event listeners
@@ -409,6 +487,15 @@
                     messageInput.value = '';
                 }
             }
+        });
+
+        // Example prompts event listeners
+        examplePrompts.forEach(prompt => {
+            prompt.addEventListener('click', () => {
+                const promptText = prompt.textContent.replace(/^"|"$/g, ''); // Remove surrounding quotes
+                messageInput.value = promptText;
+                sendMessage(promptText);
+            });
         });
 
         // Initial focus
