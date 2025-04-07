@@ -27,6 +27,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\AgenticAI.Assistant.Flight\AgenticAI.Assistant.Flight.csproj" />
+        <ProjectReference Include="..\AgenticAI.Assistant\AgenticAI.Assistant.csproj" />
         <ProjectReference Include="..\AgenticAI\AgenticAI.Assistant.csproj" />
     </ItemGroup>
 

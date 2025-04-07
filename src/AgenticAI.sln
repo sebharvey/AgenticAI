@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgenticAI.Assistant", "AgenticAI\AgenticAI.Assistant.csproj", "{FDD20578-F306-4FD4-9D24-2EA21B224EB9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgenticAI.Assistant", "AgenticAI.Assistant\AgenticAI.Assistant.csproj", "{FDD20578-F306-4FD4-9D24-2EA21B224EB9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgenticAI.Tests", "AgenticAI.Tests\AgenticAI.Tests.csproj", "{BE5D499B-5746-4575-8433-73C817855DD2}"
 EndProject
