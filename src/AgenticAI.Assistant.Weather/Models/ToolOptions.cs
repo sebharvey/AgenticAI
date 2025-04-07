@@ -1,10 +1,10 @@
-namespace AgenticAI.Assistant.Flight.Models
+namespace AgenticAI.Assistant.Weather.Models
 {
     /// <summary>
     /// Configuration options for tools
     /// </summary>
     public class ToolOptions
     {
-        public FlightSearchToolOptions FlightSearch { get; set; }
+        public WeatherToolOptions Weather { get; set; }
     }
 }

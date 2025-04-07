@@ -1,4 +1,4 @@
-namespace AgenticAI.Assistant.Flight.Models
+namespace AgenticAI.Assistant.Weather.Models
 {
     /// <summary>
     /// Configuration options for the weather tool

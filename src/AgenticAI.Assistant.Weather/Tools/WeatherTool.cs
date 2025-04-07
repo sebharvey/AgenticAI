@@ -1,11 +1,11 @@
 using System.Text.Json;
-using AgenticAI.Assistant.Flight.Models;
 using AgenticAI.Assistant.Models;
 using AgenticAI.Assistant.Tooling;
+using AgenticAI.Assistant.Weather.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AgenticAI.Assistant.Flight.Tools
+namespace AgenticAI.Assistant.Weather.Tools
 {
     /// <summary>
     /// Weather tool implementation

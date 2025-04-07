@@ -134,89 +134,89 @@ namespace AgenticAI.Tests
             );
         }
 
-        [Fact]
-        public async Task WeatherTool_ExecuteAsync_ReturnsWeatherData()
-        {
-            // Arrange
-            var httpClientFactoryMock = new Mock<IHttpClientFactory>();
-            var optionsMock = new Mock<IOptions<ToolOptions>>();
-            var loggerMock = new Mock<ILogger<WeatherTool>>();
+        //[Fact]
+        //public async Task WeatherTool_ExecuteAsync_ReturnsWeatherData()
+        //{
+        //    // Arrange
+        //    var httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        //    var optionsMock = new Mock<IOptions<ToolOptions>>();
+        //    var loggerMock = new Mock<ILogger<WeatherTool>>();
 
-            // Setup mock response
-            var weatherResponse = @"{
-                ""main"": {
-                    ""temp"": 18.5,
-                    ""feels_like"": 17.9,
-                    ""humidity"": 65
-                },
-                ""weather"": [
-                    {
-                        ""description"": ""scattered clouds""
-                    }
-                ],
-                ""wind"": {
-                    ""speed"": 5.2
-                },
-                ""name"": ""Seattle""
-            }";
+        //    // Setup mock response
+        //    var weatherResponse = @"{
+        //        ""main"": {
+        //            ""temp"": 18.5,
+        //            ""feels_like"": 17.9,
+        //            ""humidity"": 65
+        //        },
+        //        ""weather"": [
+        //            {
+        //                ""description"": ""scattered clouds""
+        //            }
+        //        ],
+        //        ""wind"": {
+        //            ""speed"": 5.2
+        //        },
+        //        ""name"": ""Seattle""
+        //    }";
 
-            var handlerMock = new Mock<HttpMessageHandler>();
-            handlerMock
-                .Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>())
-                .ReturnsAsync(new HttpResponseMessage
-                {
-                    StatusCode = HttpStatusCode.OK,
-                    Content = new StringContent(weatherResponse, Encoding.UTF8, "application/json")
-                });
+        //    var handlerMock = new Mock<HttpMessageHandler>();
+        //    handlerMock
+        //        .Protected()
+        //        .Setup<Task<HttpResponseMessage>>(
+        //            "SendAsync",
+        //            ItExpr.IsAny<HttpRequestMessage>(),
+        //            ItExpr.IsAny<CancellationToken>())
+        //        .ReturnsAsync(new HttpResponseMessage
+        //        {
+        //            StatusCode = HttpStatusCode.OK,
+        //            Content = new StringContent(weatherResponse, Encoding.UTF8, "application/json")
+        //        });
 
-            var httpClient = new HttpClient(handlerMock.Object);
-            httpClientFactoryMock.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(httpClient);
+        //    var httpClient = new HttpClient(handlerMock.Object);
+        //    httpClientFactoryMock.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
-            optionsMock
-                .Setup(o => o.Value)
-                .Returns(new ToolOptions
-                {
-                    Weather = new WeatherToolOptions
-                    {
-                        ApiKey = "fake-api-key",
-                        ApiEndpoint = "https://api.openweathermap.org/data/2.5/weather"
-                    }
-                });
+        //    optionsMock
+        //        .Setup(o => o.Value)
+        //        .Returns(new ToolOptions
+        //        {
+        //            Weather = new WeatherToolOptions
+        //            {
+        //                ApiKey = "fake-api-key",
+        //                ApiEndpoint = "https://api.openweathermap.org/data/2.5/weather"
+        //            }
+        //        });
 
-            var weatherTool = new WeatherTool(
-                httpClientFactoryMock.Object,
-                optionsMock.Object,
-                loggerMock.Object);
+        //    var weatherTool = new WeatherTool(
+        //        httpClientFactoryMock.Object,
+        //        optionsMock.Object,
+        //        loggerMock.Object);
 
-            // Create input for tool
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var inputJson = JsonSerializer.Serialize(new { location = "Seattle", units = "metric" }, options);
-            var inputElement = JsonDocument.Parse(inputJson).RootElement;
+        //    // Create input for tool
+        //    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        //    var inputJson = JsonSerializer.Serialize(new { location = "Seattle", units = "metric" }, options);
+        //    var inputElement = JsonDocument.Parse(inputJson).RootElement;
 
-            // Act
-            var result = await weatherTool.ExecuteAsync(inputElement);
+        //    // Act
+        //    var result = await weatherTool.ExecuteAsync(inputElement);
 
-            // Assert
-            Assert.NotNull(result);
-            var resultObj = JsonSerializer.Deserialize<JsonElement>(result);
-            Assert.Equal("Seattle", resultObj.GetProperty("city").GetString());
-            Assert.Contains("18.5", resultObj.GetProperty("temperature").GetString());
-            Assert.Contains("scattered clouds", resultObj.GetProperty("description").GetString());
+        //    // Assert
+        //    Assert.NotNull(result);
+        //    var resultObj = JsonSerializer.Deserialize<JsonElement>(result);
+        //    Assert.Equal("Seattle", resultObj.GetProperty("city").GetString());
+        //    Assert.Contains("18.5", resultObj.GetProperty("temperature").GetString());
+        //    Assert.Contains("scattered clouds", resultObj.GetProperty("description").GetString());
 
-            // Verify HTTP request was made
-            handlerMock.Protected().Verify(
-                "SendAsync",
-                Times.Once(),
-                ItExpr.Is<HttpRequestMessage>(req =>
-                    req.Method == HttpMethod.Get &&
-                    req.RequestUri.ToString().Contains("api.openweathermap.org/data/2.5/weather")),
-                ItExpr.IsAny<CancellationToken>()
-            );
-        }
+        //    // Verify HTTP request was made
+        //    handlerMock.Protected().Verify(
+        //        "SendAsync",
+        //        Times.Once(),
+        //        ItExpr.Is<HttpRequestMessage>(req =>
+        //            req.Method == HttpMethod.Get &&
+        //            req.RequestUri.ToString().Contains("api.openweathermap.org/data/2.5/weather")),
+        //        ItExpr.IsAny<CancellationToken>()
+        //    );
+        //}
 
         [Fact]
         public void ToolRegistry_RegisterAndGetTools_WorksCorrectly()

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AgenticAI.Assistant.Flight.Models;
 using AgenticAI.Assistant.Functions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,10 +8,11 @@ using Microsoft.Extensions.Logging;
 using AgenticAI.Assistant.Models;
 using AgenticAI.Assistant.Orchestrator;
 using AgenticAI.Assistant.Tooling;
-using AgenticAI.Assistant.Flight.Tools;
 using AgenticAI.Assistant.LanguageModel.Claude;
+using AgenticAI.Assistant.Weather.Models;
+using AgenticAI.Assistant.Weather.Tools;
 
-namespace AgenticAI.Assistant.Flight
+namespace AgenticAI.Assistant.Weather
 {
     public class Program
     {
@@ -60,7 +60,7 @@ namespace AgenticAI.Assistant.Flight
                     services.AddSingleton<MessageFunction>();
 
                     // Tools
-                    services.AddSingleton<ITool, FlightSearchTool>();
+                    services.AddSingleton<ITool, WeatherTool>();
 
                     services.Configure<JsonSerializerOptions>(options =>
                     {

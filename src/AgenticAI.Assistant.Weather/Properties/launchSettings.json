@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "AgenticAI.Assistant.Weather": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7130",
+      "launchBrowser": false
+    }
+  }
+}
