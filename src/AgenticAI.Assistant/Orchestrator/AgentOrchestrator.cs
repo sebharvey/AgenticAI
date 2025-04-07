@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using AgenticAI.Assistant.LanguageModel;
 using AgenticAI.Assistant.Models;
 using AgenticAI.Assistant.Tooling;
+using AgenticAI.Assistant.LanguageModel.Claude;
 
 namespace AgenticAI.Assistant.Orchestrator
 {

@@ -5,7 +5,7 @@ using AgenticAI.Assistant.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AgenticAI.Assistant.LanguageModel
+namespace AgenticAI.Assistant.LanguageModel.Claude
 {
     /// <summary>
     /// Updated implementation of the Claude API client

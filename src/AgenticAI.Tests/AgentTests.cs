@@ -6,11 +6,11 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using AgenticAI.Assistant.Flight.Models;
-using AgenticAI.Assistant.LanguageModel;
 using AgenticAI.Assistant.Models;
 using AgenticAI.Assistant.Orchestrator;
 using AgenticAI.Assistant.Tooling;
 using AgenticAI.Assistant.Flight.Tools;
+using AgenticAI.Assistant.LanguageModel.Claude;
 
 namespace AgenticAI.Tests
 {

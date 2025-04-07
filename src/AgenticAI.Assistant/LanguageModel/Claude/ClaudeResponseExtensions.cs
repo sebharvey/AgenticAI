@@ -1,6 +1,6 @@
 using AgenticAI.Assistant.Models;
 
-namespace AgenticAI.Assistant.LanguageModel
+namespace AgenticAI.Assistant.LanguageModel.Claude
 {
     /// <summary>
     /// Extension method to get content as string

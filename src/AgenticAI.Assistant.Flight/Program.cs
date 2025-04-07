@@ -6,11 +6,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using AgenticAI.Assistant.LanguageModel;
 using AgenticAI.Assistant.Models;
 using AgenticAI.Assistant.Orchestrator;
 using AgenticAI.Assistant.Tooling;
 using AgenticAI.Assistant.Flight.Tools;
+using AgenticAI.Assistant.LanguageModel.Claude;
 
 namespace AgenticAI.Assistant.Flight
 {
