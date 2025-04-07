@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using AgenticAI.Assistant.Models;
 using AgenticAI.Assistant.Orchestrator;
@@ -7,10 +7,11 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace AgenticAI.Functions
+namespace AgenticAI.Assistant.Functions
 {
     /// <summary>
-    /// Azure Function implementation of the Claude Agent
+    /// Implementation of the Claude Agent message handling functions
+    /// This class can be used directly in Azure Function projects
     /// </summary>
     public class MessageFunction
     {
@@ -159,7 +160,8 @@ namespace AgenticAI.Functions
         /// Returns a simple heartbeat response to verify the function app is running
         /// </summary>
         [Function("Heartbeat")]
-        public async Task<HttpResponseData> Heartbeat([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "heartbeat")] HttpRequestData req)
+        public async Task<HttpResponseData> Heartbeat(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "heartbeat")] HttpRequestData req)
         {
             _logger.LogInformation("Heartbeat function triggered");
 

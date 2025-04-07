@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgenticAI.Assistant.Flight.Models;
+using AgenticAI.Assistant.Functions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -48,13 +49,15 @@ namespace AgenticAI.Assistant.Flight
                 {
                     //services.AddApplicationServices(context.Configuration);
                     services.AddHttpClient();
-                    
+
                     services.Configure<ClaudeOptions>(context.Configuration.GetSection("Claude"));
                     services.Configure<ToolOptions>(context.Configuration.GetSection("Tools"));
 
+                    // Register core services
                     services.AddSingleton<IClaudeClient, ClaudeClient>();
                     services.AddSingleton<IAgentOrchestrator, AgentOrchestrator>();
                     services.AddSingleton<IToolRegistry, ToolRegistry>();
+                    services.AddSingleton<MessageFunction>();
 
                     // Tools
                     services.AddSingleton<ITool, WeatherTool>();
