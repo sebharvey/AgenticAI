@@ -406,3 +406,5 @@ FodyWeavers.xsd
 /IISExpress.bat
 /src/TestAiAgent/appsettings.json
 /src/AgenticAI.Assistant.Flight/appsettings.json
+/src/AgenticAI.Assistant.Weather/appsettings.json
+/src/AgenticAI.Assistant.Parent/appsettings.json
