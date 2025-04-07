@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35527.113
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgenticAI.Assistant", "AgenticAI\AgenticAI.Assistant.csproj", "{FDD20578-F306-4FD4-9D24-2EA21B224EB9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgenticAI.Tests", "AgenticAI.Tests\AgenticAI.Tests.csproj", "{BE5D499B-5746-4575-8433-73C817855DD2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgenticAI.Assistant.Flight", "AgenticAI.Assistant.Flight\AgenticAI.Assistant.Flight.csproj", "{9E1D311C-E442-4F14-9BF1-8420450F79C3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FDD20578-F306-4FD4-9D24-2EA21B224EB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDD20578-F306-4FD4-9D24-2EA21B224EB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDD20578-F306-4FD4-9D24-2EA21B224EB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDD20578-F306-4FD4-9D24-2EA21B224EB9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE5D499B-5746-4575-8433-73C817855DD2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE5D499B-5746-4575-8433-73C817855DD2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE5D499B-5746-4575-8433-73C817855DD2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE5D499B-5746-4575-8433-73C817855DD2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E1D311C-E442-4F14-9BF1-8420450F79C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E1D311C-E442-4F14-9BF1-8420450F79C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E1D311C-E442-4F14-9BF1-8420450F79C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E1D311C-E442-4F14-9BF1-8420450F79C3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
