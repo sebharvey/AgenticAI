@@ -10,7 +10,6 @@ using AgenticAI.Assistant.LanguageModel;
 using AgenticAI.Assistant.Models;
 using AgenticAI.Assistant.Orchestrator;
 using AgenticAI.Assistant.Tooling;
-using Xunit;
 using AgenticAI.Assistant.Flight.Tools;
 
 namespace AgenticAI.Tests
