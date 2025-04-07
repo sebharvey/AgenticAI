@@ -405,3 +405,4 @@ FodyWeavers.xsd
 *.sln.iml
 /IISExpress.bat
 /src/TestAiAgent/appsettings.json
+/src/AgenticAI.Assistant.Flight/appsettings.json
