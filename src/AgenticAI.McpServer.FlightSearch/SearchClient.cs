@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AgenticAI.McpServer.FlightSearch
 {
-    public class SearchClient
+    public class SearchClient : ISearchClient
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<Search> _logger;

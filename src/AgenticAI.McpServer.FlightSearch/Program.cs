@@ -45,6 +45,8 @@ namespace AgenticAI.McpServer.FlightSearch
 
                     services.Configure<FlightSearchToolOptions>(context.Configuration.GetSection("FlightSearch"));
 
+                    services.AddSingleton<ISearchClient, SearchClient>();
+
                     services.Configure<JsonSerializerOptions>(options =>
                     {
                         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
