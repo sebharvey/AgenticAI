@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -19,21 +20,75 @@ namespace AgenticAI.McpServer.FlightSearch
         }
 
         [Function("Search")]
-        public IActionResult SearchEndpoint([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
+        public async Task<IActionResult> SearchEndpoint([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
         {
-            // TODO SearchEndpoint - implement the search logic here, calling _clientSearch.SearchAsync to invoke the GraphQL API and return the response
+            try
+            {
+                _logger.LogInformation("Processing flight search request");
 
-            _logger.LogInformation("C# HTTP trigger function processed a request.");
-            return new OkObjectResult("Welcome to Azure Functions!");
+                // Read and parse the request body
+                var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+
+                if (string.IsNullOrEmpty(requestBody))
+                {
+                    return new BadRequestObjectResult(new { error = "Request body is empty" });
+                }
+
+                var searchRequest = JsonSerializer.Deserialize<SearchRequest>(requestBody, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                // Validate required fields
+                if (string.IsNullOrEmpty(searchRequest?.Origin))
+                {
+                    return new BadRequestObjectResult(new { error = "Origin is required" });
+                }
+
+                if (string.IsNullOrEmpty(searchRequest.Destination))
+                {
+                    return new BadRequestObjectResult(new { error = "Destination is required" });
+                }
+
+                if (searchRequest.DepartureDate == default)
+                {
+                    return new BadRequestObjectResult(new { error = "DepartureDate is required" });
+                }
+
+                // Call the search client to execute the flight search
+                var searchResult = await _clientSearch.ExecuteAsync(searchRequest);
+
+                // Return the search results as JSON
+                return new ContentResult
+                {
+                    Content = searchResult,
+                    ContentType = "application/json",
+                    StatusCode = 200
+                };
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Invalid JSON in request body");
+                return new BadRequestObjectResult(new { error = "Invalid JSON format in request body" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing flight search request");
+                return new StatusCodeResult(500);
+            }
         }
     }
 
     public class SearchRequest
     {
+        [JsonPropertyName("origin")]
         public string Origin { get; set; }
-        public string Destination { get; set; }
-        public DateTime DepartureDate { get; set; }
 
+        [JsonPropertyName("destination")]
+        public string Destination { get; set; }
+
+        [JsonPropertyName("departureDate")]
+        public DateTime DepartureDate { get; set; }
     }
 
     #region Response Models
