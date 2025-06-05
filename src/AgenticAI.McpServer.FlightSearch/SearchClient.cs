@@ -33,7 +33,7 @@ namespace AgenticAI.McpServer.FlightSearch
         public async Task<string> ExecuteAsync(SearchRequest searchRequest)
         {
             try
-            {  
+            {
                 // Check if departure date is in the past
                 if (searchRequest.DepartureDate.Date < DateTime.Today)
                 {
@@ -90,9 +90,9 @@ namespace AgenticAI.McpServer.FlightSearch
                 {
                     new
                     {
-                        searchRequest.Origin,
-                        searchRequest.Destination,
-                        searchRequest.DepartureDate,
+                        origin = searchRequest.Origin,
+                        destination = searchRequest.Destination,
+                        departureDate = searchRequest.DepartureDate,
                         connectionAirports = (string)null
                     }
                 };
