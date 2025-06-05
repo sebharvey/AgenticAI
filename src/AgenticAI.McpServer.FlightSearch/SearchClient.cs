@@ -1,21 +1,30 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgenticAI.McpServer.FlightSearch
 {
     public class SearchClient : ISearchClient
     {
         private readonly HttpClient _httpClient;
-        private readonly ILogger<Search> _logger;
-        private readonly FlightSearchToolOptions _options;
+        private readonly ILogger<SearchClient> _logger;
+        private readonly FlightSearchOptions _options;
 
-        public SearchClient(ILogger<Search> logger, HttpClient httpClient, FlightSearchToolOptions options)
+        public SearchClient(
+            IHttpClientFactory httpClientFactory,
+            IOptions<FlightSearchOptions> options,
+            ILogger<SearchClient> logger)
         {
+            _httpClient = httpClientFactory.CreateClient();
+            _options = options.Value;
             _logger = logger;
-            _httpClient = httpClient;
-            _options = options;
+
+            // Set up HTTP client
+            _httpClient.DefaultRequestHeaders.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
         /// <summary>

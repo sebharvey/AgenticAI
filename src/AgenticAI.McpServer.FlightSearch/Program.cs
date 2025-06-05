@@ -43,7 +43,7 @@ namespace AgenticAI.McpServer.FlightSearch
                     //services.AddApplicationServices(context.Configuration);
                     services.AddHttpClient();
 
-                    services.Configure<FlightSearchToolOptions>(context.Configuration.GetSection("FlightSearch"));
+                    services.Configure<FlightSearchOptions>(context.Configuration.GetSection("FlightSearch"));
 
                     services.AddSingleton<ISearchClient, SearchClient>();
 
@@ -59,7 +59,7 @@ namespace AgenticAI.McpServer.FlightSearch
         }
     }
 
-    public class FlightSearchToolOptions
+    public class FlightSearchOptions
     {
         public string ApiEndpoint { get; set; }
     }
