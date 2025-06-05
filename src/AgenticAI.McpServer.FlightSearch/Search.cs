@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +24,13 @@ namespace AgenticAI.McpServer.FlightSearch
         }
     }
 
+    public class SearchRequest
+    {
+        public string Origin { get; set; }
+        public string Destination { get; set; }
+        public DateTime DepartureDate { get; set; }
 
+    }
 
     #region Response Models
 
