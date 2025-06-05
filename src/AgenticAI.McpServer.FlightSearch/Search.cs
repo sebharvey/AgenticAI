@@ -10,15 +10,19 @@ namespace AgenticAI.McpServer.FlightSearch
     public class Search
     {
         private readonly ILogger<Search> _logger;
+        private readonly ISearchClient _clientSearch;
 
-        public Search(ILogger<Search> logger)
+        public Search(ILogger<Search> logger, ISearchClient clientSearch)
         {
             _logger = logger;
+            _clientSearch = clientSearch;
         }
 
-        [Function("Function1")]
-        public IActionResult Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequest req)
+        [Function("Search")]
+        public IActionResult SearchEndpoint([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
         {
+            // TODO SearchEndpoint - implement the search logic here, calling _clientSearch.SearchAsync to invoke the GraphQL API and return the response
+
             _logger.LogInformation("C# HTTP trigger function processed a request.");
             return new OkObjectResult("Welcome to Azure Functions!");
         }
